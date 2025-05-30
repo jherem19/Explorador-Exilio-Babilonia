@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explorador Interactivo: El Exilio Babilónico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Visualization & Content Choices: 
+        Home Page: Introduction text + 3 cards (Image, Title, Description, Button) for "Antes", "Durante", "Después". Goal: Engaging entry point. Viz: HTML/Tailwind cards. Interaction: Click "Explore" to show detailed section.
+        Kings/Governors (in detailed sections): Interactive Timelines (Chart.js). Interaction: Click for detail pane + Gemini "Analizar Impacto".
+        Prophetic messages (in detailed sections): Accordion. Interaction: Expand + Gemini "Profundizar Mensaje" + "Ver Versículos" (Gemini modal).
+        Tables, Poetic excerpts, Fuentes: As before, accessed via Home cards or nav, with UI consistency.
+        Modal UI: Modern, clean, enhanced typography.
+    -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9; /* slate-100 */
+            color: #334155; /* slate-700 */
+        }
+        .nav-logo:hover {
+            opacity: 0.8;
+        }
+        .nav-button.active { /* For Conclusión and Fuentes */
+            color: #0f172a; /* slate-900 */
+            font-weight: 600; /* semibold */
+            border-bottom-color: #0f172a; /* slate-900 */
+        }
+         .sub-tab-button.active {
+            background-color: #0f172a; /* slate-800 */
+            color: white;
+            font-weight: 500;
+        }
+        .sub-tab-button {
+            color: #475569; /* slate-600 */
+            border-bottom-width: 2px;
+            border-color: transparent;
+        }
+        .sub-tab-button:hover {
+            color: #0f172a; /* slate-900 */
+            border-bottom-color: #cbd5e1; /* slate-300 */
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px; 
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px; 
+            max-height: 500px; 
+            background-color: #ffffff;
+            padding: 1rem;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); /* shadow */
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 450px;
+                padding: 1.5rem;
+            }
+        }
+        .accordion-item {
+            background-color: #ffffff;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); /* shadow */
+            margin-bottom: 1rem;
+        }
+        .accordion-header {
+            cursor: pointer;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0; /* slate-200 */
+        }
+        .accordion-header:hover {
+            background-color: #f8fafc; /* slate-50 */
+        }
+        .accordion-item.active .accordion-header {
+             border-bottom-color: transparent;
+        }
+        .accordion-content {
+            display: none;
+            padding: 1.5rem;
+            border-top: none;
+        }
+        .accordion-item.active .accordion-content {
+            display: block;
+        }
+        .accordion-header .arrow {
+            transition: transform 0.3s ease;
+            display: inline-block;
+            margin-left: auto;
+            color: #475569; /* slate-600 */
+        }
+        .accordion-item.active .accordion-header .arrow {
+            transform: rotate(90deg);
+        }
+        th, td {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0; /* slate-200 */
+        }
+        th {
+            background-color: #f8fafc; /* slate-50 */
+            color: #1e293b; /* slate-800 */
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f8fafc; /* slate-50 */
+        }
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; 
+            background-color: #ffffff;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); /* shadow */
+        }
+        .action-button { 
+            padding: 0.625rem 1.25rem; 
+            border-radius: 0.5rem; 
+            font-weight: 500; 
+            transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1); 
+        }
+        .gemini-button {
+             background-color: #1e293b; 
+             color: white;
+        }
+        .gemini-button:hover {
+            background-color: #0f172a; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); 
+        }
+        .verse-modal-button {
+            background-color: #0ea5e9; 
+            color: white;
+        }
+        .verse-modal-button:hover {
+            background-color: #0284c7; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); 
+        }
+         .verse-in-text-trigger {
+            color: #0ea5e9; 
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: 500;
+         }
+         .verse-in-text-trigger:hover {
+            color: #0284c7; 
+         }
+         .fuentes-list {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+            padding-left: 1rem;
+         }
+         .fuentes-list li {
+            margin-bottom: 0.5rem; 
+         }
+
+        #contentModal .modal-dialog-content {
+            background-color: #ffffff; 
+            border-radius: 1rem; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
+            border: 1px solid #e2e8f0; 
+            max-height: 90vh; 
+            width: 90%;
+            max-width: 768px; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        #contentModalTitle {
+            padding: 1.5rem; 
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e2e8f0; 
+            color: #1e293b; 
+            font-size: 1.5rem; 
+            font-weight: 700; 
+        }
+
+        #closeContentModal {
+            position: absolute;
+            top: 1rem; 
+            right: 1rem; 
+            color: #64748b; 
+            font-size: 1.875rem; 
+            line-height: 1;
+            padding: 0.5rem;
+            border-radius: 9999px; 
+            transition: background-color 0.2s, color 0.2s;
+        }
+        #closeContentModal:hover {
+            color: #0f172a; 
+            background-color: #f1f5f9; 
+        }
+
+        #contentResponseArea {
+            padding: 1.5rem; 
+            line-height: 1.75; 
+            color: #334155; 
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .modal-content-text p { margin-bottom: 1.25rem; }
+        .modal-content-text strong { color: #0f172a; font-weight: 600;  }
+        .modal-content-text em { font-style: italic; color: #1e293b; }
+        .modal-content-text h1, .modal-content-text h2, .modal-content-text h3, .modal-content-text h4, .modal-content-text h5, .modal-content-text h6 {
+            font-weight: 600; color: #1e293b; margin-top: 1.75rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #cbd5e1; 
+        }
+        .modal-content-text h1 { font-size: 1.875rem; } 
+        .modal-content-text h2 { font-size: 1.5rem; }    
+        .modal-content-text h3 { font-size: 1.25rem; }   
+        .modal-content-text h4 { font-size: 1.125rem; }  
+        .modal-content-text ul, .modal-content-text ol { margin-left: 0.5rem; margin-bottom: 1.25rem; padding-left: 1.25rem; }
+        .modal-content-text ul li, .modal-content-text ol li { margin-bottom: 0.625rem; }
+        .modal-content-text ul { list-style-type: disc; }
+        .modal-content-text ol { list-style-type: decimal; }
+        .modal-content-text blockquote {
+            border-left: 4px solid #38bdf8; padding-left: 1.25rem; margin: 1.75rem 0; font-style: italic;
+            color: #475569; background-color: #f0f9ff; padding-top: 0.75rem; padding-bottom: 0.75rem; border-radius: 0.375rem; 
+        }
+        .modal-content-text .verse-number { font-weight: bold; color: #0ea5e9; margin-right: 0.25em; }
+        
+        .content-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); /* shadow-lg */
+            padding: 1.5rem; /* p-6 */
+            margin-bottom: 2rem; /* mb-8 */
+        }
+        @media (min-width: 768px) {
+            .content-card {
+                padding: 2rem; /* p-8 */
+            }
+        }
+        .home-section-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); /* shadow-lg */
+            overflow: hidden; /* To contain the image */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .home-section-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); /* shadow-xl */
+        }
+        .home-section-card img {
+            width: 100%;
+            height: 200px; /* Fixed height for cover images */
+            object-fit: cover; /* Crop image to fit */
+        }
+
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-700">
+
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <div class="flex items-center">
+                    <button id="homeButton" class="nav-logo focus:outline-none">
+                        <span class="font-bold text-2xl text-slate-900">📜 Exilio Babilónico</span>
+                    </button>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-1">
+                        <button data-tab="conclusion" class="nav-button text-slate-600 hover:text-slate-900 px-4 py-3 rounded-md text-sm font-medium border-b-2 border-transparent">Conclusión</button>
+                        <button data-tab="fuentes" class="nav-button text-slate-600 hover:text-slate-900 px-4 py-3 rounded-md text-sm font-medium border-b-2 border-transparent">Fuentes</button>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="text-slate-600 hover:text-slate-900 focus:outline-none p-2">
+                        <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="mobile-menu" class="md:hidden hidden border-t border-slate-200">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <button data-tab="conclusion" class="block nav-button text-slate-600 hover:text-slate-900 hover:bg-slate-100 w-full text-left px-3 py-3 rounded-md text-base font-medium border-b-2 border-transparent">Conclusión</button>
+                <button data-tab="fuentes" class="block nav-button text-slate-600 hover:text-slate-900 hover:bg-slate-100 w-full text-left px-3 py-3 rounded-md text-base font-medium border-b-2 border-transparent">Fuentes</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
+        <section id="home" class="content-section">
+            <div class="content-card mb-12">
+                <h2 class="text-4xl font-bold text-slate-900 mb-6">Bienvenido al Explorador del Exilio Babilónico</h2>
+                <p class="mb-4 text-lg leading-relaxed">Esta aplicación interactiva te guiará a través de uno de los períodos más cruciales y transformadores en la historia del antiguo pueblo de Judá: el Exilio Babilónico. Exploraremos los eventos que condujeron a la caída de Jerusalén, la vida durante el cautiverio y el subsiguiente retorno y reconstrucción bajo diversas potencias imperiales.</p>
+                <h3 class="text-2xl font-semibold text-slate-800 mt-8 mb-4">Contexto del Exilio</h3>
+                <p class="mb-4 leading-relaxed">El exilio babilónico, con sus principales deportaciones en 605, 597 y 586 a.C., no fue solo un desplazamiento geográfico, sino un evento que reconfiguró la identidad, la teología y las prácticas del pueblo judío. La destrucción del Primer Templo y la interrupción de la monarquía davídica marcaron un antes y un después, cuyas resonancias se perciben a lo largo de toda la Biblia y en la historia posterior.</p>
+                <p class="mb-4 leading-relaxed">Este explorador se centra en el Reino de Judá (el Reino del Sur), ya que el Reino del Norte (Israel) había sido previamente conquistado y dispersado por Asiria.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="home-section-card" data-target-section="antes">
+                    <img src="https://placehold.co/600x350/a5f3fc/0e7490?text=Reino+de+Jud%C3%A1+y+Profetas" alt="Imagen alusiva a Antes del Exilio">
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold text-slate-900 mb-3">Antes del Exilio</h3>
+                        <p class="text-slate-600 mb-4 leading-relaxed text-sm">Los últimos reyes de Judá, las advertencias proféticas y la creciente amenaza babilónica.</p>
+                        <button class="action-button gemini-button explore-section-btn w-full" data-target-section="antes">Explorar Sección</button>
+                    </div>
+                </div>
+
+                <div class="home-section-card" data-target-section="durante">
+                    <img src="https://placehold.co/600x350/fecaca/7f1d1d?text=Exilio+en+Babilonia" alt="Imagen alusiva a Durante el Exilio">
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold text-slate-900 mb-3">Durante el Exilio</h3>
+                        <p class="text-slate-600 mb-4 leading-relaxed text-sm">La vida en cautiverio, el liderazgo en Judea y Babilonia, y las expresiones de lamento y esperanza.</p>
+                        <button class="action-button gemini-button explore-section-btn w-full" data-target-section="durante">Explorar Sección</button>
+                    </div>
+                </div>
+
+                <div class="home-section-card" data-target-section="despues">
+                    <img src="https://placehold.co/600x350/d1fae5/065f46?text=Retorno+y+Reconstrucci%C3%B3n" alt="Imagen alusiva a Después del Exilio">
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold text-slate-900 mb-3">Después del Exilio</h3>
+                        <p class="text-slate-600 mb-4 leading-relaxed text-sm">El retorno bajo Ciro, la reconstrucción del Templo y la vida bajo los imperios Persa, Helenístico y Romano.</p>
+                        <button class="action-button gemini-button explore-section-btn w-full" data-target-section="despues">Explorar Sección</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="antes" class="content-section content-card">
+            <h2 class="text-4xl font-bold text-slate-900 mb-8">Antes del Exilio Babilónico</h2>
+            <p class="mb-8 text-lg leading-relaxed">Este período crucial detalla el declive del Reino de Judá, gobernado por los últimos reyes de la Casa de David, y las apremiantes advertencias de los profetas ante la inminente crisis que culminaría con la destrucción de Jerusalén y el Templo. Las tensiones geopolíticas con potencias como Egipto y el emergente Imperio Neobabilónico marcaron profundamente el destino de Judá.</p>
+            
+            <h3 class="text-2xl font-semibold text-slate-800 mb-4">Los Últimos Reyes de Judá</h3>
+            <p class="mb-6">La monarquía davídica enfrentó sus momentos más difíciles. Explora la línea de tiempo de los últimos reyes y los eventos clave de sus reinados.</p>
+            <div class="chart-container mb-10">
+                <canvas id="reyesAntesChart"></canvas>
+            </div>
+            <div id="reyAntesDetalle" class="p-6 bg-slate-50 rounded-xl shadow-md hidden mt-6"></div>
+
+            <h3 class="text-2xl font-semibold text-slate-800 mt-10 mb-4">Voces Proféticas ante la Crisis</h3>
+            <p class="mb-6">Profetas como Isaías, Miqueas, Jeremías, Habacuc y Sofonías alzaron sus voces advirtiendo sobre el juicio divino por la infidelidad, la idolatría y la injusticia social, pero también ofreciendo destellos de esperanza y futura restauración.</p>
+            <div id="profetasAntesAccordion" class="space-y-4">
+                </div>
+             <h3 class="text-2xl font-semibold text-slate-800 mt-10 mb-4">Tabla Resumen: Últimos Reyes de Judá</h3>
+            <div class="table-container">
+                <table class="min-w-full">
+                    <thead>
+                        <tr>
+                            <th >Nombre del Rey</th>
+                            <th >Fechas (aprox.)</th>
+                            <th >Eventos Clave</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaReyesAntes" class="divide-y divide-slate-200">
+                        </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="durante" class="content-section content-card">
+            <h2 class="text-4xl font-bold text-slate-900 mb-8">Durante el Exilio Babilónico (c. 597/586 – 538 a.C.)</h2>
+            <p class="mb-8 text-lg leading-relaxed">El exilio babilónico fue un período de profundo trauma y transformación. Mientras una parte de la población permanecía en una Judea desolada bajo administración babilónica, otra, incluyendo la élite, fue deportada a Babilonia. Este tiempo vio el surgimiento de nuevas formas de liderazgo comunitario y profético, y expresiones conmovedoras de lamento y esperanza.</p>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-slate-50 p-6 rounded-xl shadow-md">
+                    <h3 class="text-2xl font-semibold text-slate-800 mb-4">Liderazgo en Judea</h3>
+                        <h4 class="text-xl font-semibold text-slate-700 mb-2">Gedalías, hijo de Ahicam</h4>
+                        <p class="mb-3">Nombrado gobernador por Nabucodonosor sobre el remanente. Intentó pacificar la región desde Mizpa, pero fue asesinado, lo que provocó más caos y la huida de muchos a Egipto (<span class="verse-in-text-trigger" data-verse-ref="2 Reyes 25:22-26">2 Reyes 25:22-26</span>; <span class="verse-in-text-trigger" data-verse-ref="Jeremias 40:7-12; 41:1-10">Jeremías 40:7-12; 41:1-10</span>).</p>
+                        <h4 class="text-xl font-semibold text-slate-700 mt-6 mb-2">La Desolación Poética: Lamentaciones</h4>
+                        <p class="mb-3">Este libro bíblico, atribuido tradicionalmente a Jeremías, es una colección de poemas que expresan el profundo dolor por la caída de Jerusalén y la destrucción del Templo. Citan:</p>
+                        <blockquote class="border-l-4 border-sky-500 pl-4 italic text-slate-600 my-3 py-2 bg-sky-50 rounded-r-md">
+                            <p>"<span class="verse-in-text-trigger" data-verse-ref="Lamentaciones 1:1-11">¡Cómo ha quedado solitaria la ciudad populosa!</span> La grande entre las naciones se ha vuelto como viuda..." (Lamentaciones 1:1a)</p>
+                            <p>"<span class="verse-in-text-trigger" data-verse-ref="Lamentaciones 2:1-10">Por esto yo estoy llorando; de mis ojos, de mis ojos fluyen aguas</span>, porque se alejó de mí el consolador que dé reposo a mi alma..." (Lamentaciones 1:16a)</p>
+                             <p>"<span class="verse-in-text-trigger" data-verse-ref="Lamentaciones 3:1-33">Bueno es Jehová a los que en él esperan, al alma que le busca. Bueno es esperar en silencio la salvación de Jehová.</span>" (Lamentaciones 3:25-26)</p>
+                        </blockquote>
+                </div>
+                <div class="bg-slate-50 p-6 rounded-xl shadow-md">
+                    <h3 class="text-2xl font-semibold text-slate-800 mb-4">Liderazgo en Babilonia</h3>
+                        <h4 class="text-xl font-semibold text-slate-700 mb-2">Estatus del Rey Joaquín (Jeconías)</h4>
+                        <p class="mb-3">Aunque deportado, fue finalmente liberado de prisión y se le otorgó un estatus de favor en la corte babilónica, manteniendo viva la esperanza mesiánica (<span class="verse-in-text-trigger" data-verse-ref="2 Reyes 25:27-30">2 Reyes 25:27-30</span>).</p>
+                        
+                        <h4 class="text-xl font-semibold text-slate-700 mt-6 mb-2">Líderes Proféticos y Comunitarios</h4>
+                        <ul class="list-disc list-inside space-y-1 mb-3 pl-2">
+                            <li><strong>Ezequiel:</strong> Sacerdote deportado, su ministerio se centró en explicar el juicio divino y ofrecer visiones de restauración, como el valle de los huesos secos (<span class="verse-in-text-trigger" data-verse-ref="Ezequiel 37:1-14">Ezequiel 37:1-14</span>).</li>
+                            <li><strong>Daniel:</strong> Sirvió en cortes imperiales, manteniendo su fidelidad y recibiendo visiones sobre la soberanía de Dios (<span class="verse-in-text-trigger" data-verse-ref="Daniel 1-7">Daniel 1-7</span>).</li>
+                            <li><strong>Ancianos:</strong> Mantuvieron estructuras comunitarias, como se infiere de <span class="verse-in-text-trigger" data-verse-ref="Ezequiel 8:1">Ezequiel 8:1</span> y la carta de Jeremías (<span class="verse-in-text-trigger" data-verse-ref="Jeremias 29:1-14">Jeremías 29:1-14</span>).</li>
+                        </ul>
+                         <h4 class="text-xl font-semibold text-slate-700 mt-6 mb-2">El Lamento Poético en el Exilio: Salmo 137</h4>
+                        <blockquote class="border-l-4 border-sky-500 pl-4 italic text-slate-600 my-3 py-2 bg-sky-50 rounded-r-md">
+                            <p>"<span class="verse-in-text-trigger" data-verse-ref="Salmo 137:1-9">Junto a los ríos de Babilonia, allí nos sentábamos, y aun llorábamos, acordándonos de Sion. Sobre los sauces en medio de ella colgamos nuestras arpas.</span>" (Salmo 137:1-2)</p>
+                        </blockquote>
+                </div>
+            </div>
+            <h3 class="text-2xl font-semibold text-slate-800 mt-10 mb-4">Tabla Resumen: Figuras Clave Durante el Exilio</h3>
+            <div class="table-container">
+                <table class="min-w-full">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Rol/Título</th>
+                            <th>Ubicación</th>
+                            <th>Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaFigurasDurante" class="divide-y divide-slate-200">
+                        </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="despues" class="content-section content-card">
+            <h2 class="text-4xl font-bold text-slate-900 mb-8">Después del Exilio Babilónico</h2>
+            <p class="mb-8 text-lg leading-relaxed">Tras el Edicto de Ciro en 538 a.C., que permitió el retorno de los judíos, comenzó un largo período de reconstrucción y redefinición bajo sucesivas potencias imperiales. Judea, ahora la provincia persa de Yehud Medinata, vio el liderazgo de gobernadores como Zorobabel y Nehemías, y figuras religiosas como Esdras. Posteriormente, los períodos Helenístico (con la revuelta Macabea y la dinastía Asmonea) y Romano Temprano (con la dinastía Herodiana y los procuradores) trajeron nuevos desafíos y transformaciones.</p>
+
+            <div class="mb-8">
+                <div class="border-b border-slate-300">
+                    <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button data-subtab="persa" class="sub-tab-button whitespace-nowrap py-4 px-1 font-medium text-md">Período Persa</button>
+                        <button data-subtab="helenistico" class="sub-tab-button whitespace-nowrap py-4 px-1 font-medium text-md">Período Helenístico</button>
+                        <button data-subtab="romano" class="sub-tab-button whitespace-nowrap py-4 px-1 font-medium text-md">Período Romano Temprano</button>
+                    </nav>
+                </div>
+            </div>
+
+            <div id="persa" class="sub-content-section">
+                <h3 class="text-3xl font-semibold text-slate-800 mb-6">Período Persa (c. 538 – 332 a.C.)</h3>
+                <p class="mb-6">Bajo el dominio persa, Judea fue la provincia de Yehud. Gobernadores como Sesbasar y Zorobabel lideraron la reconstrucción del Templo, mientras Esdras y Nehemías impulsaron reformas religiosas y la reconstrucción de las murallas de Jerusalén. Profetas como Hageo, Zacarías, el "Segundo Isaías" (<span class="verse-in-text-trigger" data-verse-ref="Isaias 40:1-11; 43:1-21; 44:24-45:7; 52:7-12; 54:1-17; 55:1-13">Isaías 40-55</span>) y Malaquías ofrecieron guía y esperanza.</p>
+                <div class="chart-container mb-10">
+                    <canvas id="gobernadoresPersaChart"></canvas>
+                </div>
+                <div id="gobernadorPersaDetalle" class="p-6 bg-slate-50 rounded-xl shadow-md hidden mt-6"></div>
+                <h4 class="text-xl font-semibold text-slate-800 mt-8 mb-4">Tabla Resumen: Gobernadores Persas (Selección)</h4>
+                <div class="table-container">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr>
+                                <th>Gobernador</th>
+                                <th>Fechas (aprox.)</th>
+                                <th>Logros Clave</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaGobernadoresPersa" class="divide-y divide-slate-200"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="helenistico" class="sub-content-section hidden">
+                <h3 class="text-3xl font-semibold text-slate-800 mb-6">Período Helenístico (c. 332 – 63 a.C.)</h3>
+                <p class="mb-6">Tras Alejandro Magno, Judea estuvo bajo Ptolomeos y Seléucidas. La helenización forzada bajo Antíoco IV Epífanes provocó la Revuelta Macabea, que llevó a la independencia bajo la Dinastía Asmonea (Judas Macabeo, Simón, Juan Hircano I, etc.). Conflictos internos finalmente abrieron paso a la intervención romana.</p>
+                 <div class="chart-container mb-10">
+                    <canvas id="gobernadoresAsmoneoChart"></canvas>
+                </div>
+                <div id="gobernadorAsmoneoDetalle" class="p-6 bg-slate-50 rounded-xl shadow-md hidden mt-6"></div>
+                <h4 class="text-xl font-semibold text-slate-800 mt-8 mb-4">Tabla Resumen: Gobernantes Asmoneos (Selección)</h4>
+                <div class="table-container">
+                     <table class="min-w-full">
+                        <thead>
+                            <tr>
+                                <th>Gobernante</th>
+                                <th>Título(s)</th>
+                                <th>Fechas (a.C.)</th>
+                                <th>Eventos Clave</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaGobernadoresAsmoneos" class="divide-y divide-slate-200"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="romano" class="sub-content-section hidden">
+                <h3 class="text-3xl font-semibold text-slate-800 mb-6">Período Romano Temprano (Desde 63 a.C.)</h3>
+                <p class="mb-6">La intervención de Pompeyo en 63 a.C. inició la dominación romana. La Dinastía Herodiana (Herodes el Grande y sus sucesores) gobernó como reyes clientes. Cuando Judea fue provincia romana, fue administrada por prefectos y procuradores (Poncio Pilato, Félix, Florus), cuyo gobierno a menudo exacerbó las tensiones que llevaron a la Primera Revuelta Judía.</p>
+                 <div class="chart-container mb-10">
+                    <canvas id="gobernadoresRomanoChart"></canvas>
+                </div>
+                <div id="gobernadorRomanoDetalle" class="p-6 bg-slate-50 rounded-xl shadow-md hidden mt-6"></div>
+                <h4 class="text-xl font-semibold text-slate-800 mt-8 mb-4">Tabla Resumen: Gobernantes Romanos Tempranos (Selección)</h4>
+                 <div class="table-container">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr>
+                                <th>Gobernante</th>
+                                <th>Título(s)</th>
+                                <th>Fechas (aprox.)</th>
+                                <th>Notas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaGobernadoresRomanos" class="divide-y divide-slate-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="conclusion" class="content-section content-card">
+            <h2 class="text-4xl font-bold text-slate-900 mb-8">Conclusión: Legado y Transformación</h2>
+            <p class="mb-6 text-lg leading-relaxed">El período que abarca desde los últimos reyes de Judá hasta la dominación romana temprana fue una época de profundas transformaciones para el pueblo judío. A pesar de la pérdida de soberanía política y la destrucción del Templo, la fe, la identidad y las tradiciones no solo sobrevivieron sino que se adaptaron y evolucionaron.</p>
+            
+            <h3 class="text-2xl font-semibold text-slate-800 mt-8 mb-4">Continuidades y Discontinuidades</h3>
+            <p class="mb-4 leading-relaxed">Se mantuvieron continuidades clave como la esperanza mesiánica davídica, la centralidad de la Ley Mosaica (Torá) y, tras su reconstrucción, el Templo. Sin embargo, el liderazgo se fragmentó, la diáspora creció y la soberanía se vio drásticamente alterada, pasando de monarcas autónomos a reyes clientes y administradores imperiales.</p>
+
+            <h3 class="text-2xl font-semibold text-slate-800 mt-8 mb-4">Evolución de la Soberanía</h3>
+            <p class="mb-4 leading-relaxed">La "realeza" pasó de ser una monarquía davídica a un rey exiliado simbólico, luego a gobernadores provinciales bajo Persia, reyes-sumos sacerdotes asmoneos con independencia condicionada, y finalmente a reyes clientes herodianos y administradores romanos. Esta evolución refleja la constante lucha por la autonomía frente a poderes imperiales.</p>
+
+            <h3 class="text-2xl font-semibold text-slate-800 mt-8 mb-4">Impacto Duradero</h3>
+            <p class="mb-4 leading-relaxed">Las experiencias bajo sucesivos imperios forjaron el judaísmo. Las tensiones entre tradición y asimilación, autonomía e imperio, y las facciones internas, configuraron su desarrollo. Este complejo panorama también fue el crisol del cristianismo primitivo.</p>
+            <p class="leading-relaxed">Las profecías de restauración (<span class="verse-in-text-trigger" data-verse-ref="Isaias 40:1-11; 43:1-21; 44:24-45:7; 52:7-12; 54:1-17; 55:1-13">Isaías 40-55</span>; <span class="verse-in-text-trigger" data-verse-ref="Jeremias 30-31">Jeremías 30-31</span>; <span class="verse-in-text-trigger" data-verse-ref="Ezequiel 37:1-14">Ezequiel 37</span>) y los lamentos poéticos (<span class="verse-in-text-trigger" data-verse-ref="Salmo 137:1-9">Salmo 137</span>; <span class="verse-in-text-trigger" data-verse-ref="Lamentaciones 1:1-11; 2:1-10; 3:1-33; 5:1-22">Lamentaciones</span>) continuaron alimentando la fe y la esperanza a través de los siglos, demostrando una notable resiliencia espiritual y cultural.</p>
+        </section>
+
+        <section id="fuentes" class="content-section content-card">
+            <h2 class="text-4xl font-bold text-slate-900 mb-8">Fuentes Bibliográficas y Pasajes Clave</h2>
+            <p class="mb-8 text-lg leading-relaxed">Esta aplicación se basa en la información contenida en los textos bíblicos y se complementa con interpretaciones históricas y arqueológicas. A continuación, se presenta un resumen de las fuentes primarias y algunos de los pasajes más relevantes.</p>
+
+            <h3 class="text-2xl font-semibold text-slate-800 mb-4">Fuentes Bibliográficas Primarias</h3>
+            <ul class="fuentes-list text-md">
+                <li><strong>Libros Históricos:</strong> 1 y 2 Reyes, 1 y 2 Crónicas, Esdras, Nehemías.</li>
+                <li><strong>Libros Proféticos (Mayores):</strong> Isaías, Jeremías, Lamentaciones, Ezequiel, Daniel.</li>
+                <li><strong>Libros Proféticos (Menores):</strong> Hageo, Zacarías, Malaquías, Miqueas, Nahúm, Habacuc, Sofonías, Abdías.</li>
+                <li><strong>Libros Poéticos/Sapienciales:</strong> Salmos (especialmente <span class="verse-in-text-trigger" data-verse-ref="Salmo 137:1-9">Salmo 137</span>).</li>
+                <li><strong>Libros Deuterocanónicos/Apócrifos (contexto helenístico):</strong> 1 y 2 Macabeos.</li>
+            </ul>
+
+            <h3 class="text-2xl font-semibold text-slate-800 mt-8 mb-4">Fuentes Académicas (Referencia General)</h3>
+            <p class="mb-8 leading-relaxed">El contenido de esta aplicación integra la información de las Sagradas Escrituras con hallazgos arqueológicos y estudios de eruditos en historia del Antiguo Cercano Oriente, cronología bíblica y estudios del Segundo Templo. Las referencias específicas a obras académicas y cronologías detalladas (como las de W.F. Albright, E.R. Thiele, G. Galil, K.A. Kitchen, y otras citadas en el informe original con números como [1] a [14]) pueden consultarse en el documento base que inspiró esta aplicación.</p>
+
+            <h3 class="text-2xl font-semibold text-slate-800 mt-8 mb-4">Pasajes Bíblicos Clave por Período</h3>
+            
+            <h4 class="text-xl font-semibold text-slate-700 mt-6 mb-3">Antes del Exilio:</h4>
+            <ul class="fuentes-list text-md">
+                <li>Reforma de Josías y hallazgo de la Ley: <span class="verse-in-text-trigger" data-verse-ref="2 Reyes 23:1-25">2 Reyes 23:1-25</span>; <span class="verse-in-text-trigger" data-verse-ref="2 Cronicas 34:29-33; 35:20-24">2 Crónicas 34:29-33; 35:20-24</span>.</li>
+                <li>Reinado de Joacim y quema del rollo de Jeremías: <span class="verse-in-text-trigger" data-verse-ref="Jeremias 36">Jeremías 36</span>.</li>
+                <li>Primera deportación (Daniel y compañeros): <span class="verse-in-text-trigger" data-verse-ref="Daniel 1:1-7">Daniel 1:1-7</span>.</li>
+                <li>Segunda deportación (Rey Joaquín, Ezequiel): <span class="verse-in-text-trigger" data-verse-ref="2 Reyes 24:8-17">2 Reyes 24:8-17</span>; <span class="verse-in-text-trigger" data-verse-ref="Ezequiel 1:1-3">Ezequiel 1:1-3</span>.</li>
+                <li>Reinado de Sedequías y advertencias de Jeremías: <span class="verse-in-text-trigger" data-verse-ref="Jeremias 38:14-28">Jeremías 38:14-28</span>.</li>
+                <li>Caída de Jerusalén y destrucción del Templo: <span class="verse-in-text-trigger" data-verse-ref="2 Reyes 25:1-21">2 Reyes 25:1-21</span>; <span class="verse-in-text-trigger" data-verse-ref="Jeremias 39:1-10">Jeremías 39:1-10</span>, <span class="verse-in-text-trigger" data-verse-ref="Jeremias 52:4-30">52:4-30</span>; <span class="verse-in-text-trigger" data-verse-ref="2 Cronicas 36:11-21">2 Crónicas 36:11-21</span>.</li>
+                <li>Profecías de Isaías sobre el juicio y la cautividad: <span class="verse-in-text-trigger" data-verse-ref="Isaias 1:2-20">Isaías 1:2-20</span>, <span class="verse-in-text-trigger" data-verse-ref="Isaias 5:1-7, 13-17, 24-25">5:1-7, 13-17, 24-25</span>, <span class="verse-in-text-trigger" data-verse-ref="Isaias 39">39</span>.</li>
+                <li>Profecías de Miqueas sobre la destrucción y el exilio: <span class="verse-in-text-trigger" data-verse-ref="Miqueas 3:9-12">Miqueas 3:9-12</span>, <span class="verse-in-text-trigger" data-verse-ref="Miqueas 4:10">4:10</span>.</li>
+                <li>Profecías de Habacuc sobre los babilonios: <span class="verse-in-text-trigger" data-verse-ref="Habacuc 1:1-11; 2:1-4">Habacuc 1:1-11; 2:1-4</span>.</li>
+                <li>Profecías de Sofonías sobre el Día del Señor: <span class="verse-in-text-trigger" data-verse-ref="Sofonias 1:14-18; 3:1-8">Sofonías 1:14-18; 3:1-8</span>.</li>
+            </ul>
+
+            <h4 class="text-xl font-semibold text-slate-700 mt-6 mb-3">Durante el Exilio:</h4>
+            <ul class="fuentes-list text-md">
+                <li>Gobernación y asesinato de Gedalías: <span class="verse-in-text-trigger" data-verse-ref="2 Reyes 25:22-26">2 Reyes 25:22-26</span>; <span class="verse-in-text-trigger" data-verse-ref="Jeremias 40:7-12; 41:1-10">Jeremías 40:7-12; 41:1-10</span>.</li>
+                <li>Lamento por Jerusalén: Libro de <span class="verse-in-text-trigger" data-verse-ref="Lamentaciones">Lamentaciones</span> (ej. <span class="verse-in-text-trigger" data-verse-ref="Lamentaciones 1:1-11">1:1-11</span>, <span class="verse-in-text-trigger" data-verse-ref="Lamentaciones 2:1-10">2:1-10</span>, <span class="verse-in-text-trigger" data-verse-ref="Lamentaciones 3:1-33">3:1-33</span>, <span class="verse-in-text-trigger" data-verse-ref="Lamentaciones 5:1-22">5:1-22</span>).</li>
+                <li>Ministerio de Ezequiel en Babilonia: Libro de <span class="verse-in-text-trigger" data-verse-ref="Ezequiel">Ezequiel</span> (ej. <span class="verse-in-text-trigger" data-verse-ref="Ezequiel 18">18</span>, <span class="verse-in-text-trigger" data-verse-ref="Ezequiel 37:1-14">37:1-14</span>, <span class="verse-in-text-trigger" data-verse-ref="Ezequiel 40:1-4; 43:1-7; 47:1-12">40:1-4; 43:1-7; 47:1-12</span>).</li>
+                <li>Ministerio de Daniel en Babilonia: Libro de <span class="verse-in-text-trigger" data-verse-ref="Daniel">Daniel</span> (ej. <span class="verse-in-text-trigger" data-verse-ref="Daniel 2">2</span>, <span class="verse-in-text-trigger" data-verse-ref="Daniel 6">6</span>, <span class="verse-in-text-trigger" data-verse-ref="Daniel 9:1-19">9:1-19</span>).</li>
+                <li>Carta de Jeremías a los exiliados: <span class="verse-in-text-trigger" data-verse-ref="Jeremias 29:1-14">Jeremías 29:1-14</span>.</li>
+                <li>Lamento de los exiliados: <span class="verse-in-text-trigger" data-verse-ref="Salmo 137:1-9">Salmo 137:1-9</span>.</li>
+                <li>Liberación del rey Joaquín: <span class="verse-in-text-trigger" data-verse-ref="2 Reyes 25:27-30">2 Reyes 25:27-30</span>; <span class="verse-in-text-trigger" data-verse-ref="Jeremias 52:31-34">Jeremías 52:31-34</span>.</li>
+            </ul>
+
+            <h4 class="text-xl font-semibold text-slate-700 mt-6 mb-3">Después del Exilio:</h4>
+            <ul class="fuentes-list text-md">
+                <li>Edicto de Ciro y primer retorno: <span class="verse-in-text-trigger" data-verse-ref="Esdras 1:1-11">Esdras 1:1-11</span>; <span class="verse-in-text-trigger" data-verse-ref="2 Cronicas 36:22-23">2 Crónicas 36:22-23</span>.</li>
+                <li>Reconstrucción del Templo (Zorobabel y Jesúa): <span class="verse-in-text-trigger" data-verse-ref="Esdras 3:1-13; 4:1-5, 24; 5:1-5; 6:1-18">Esdras 3:1-13; 4:1-5, 24; 5:1-5; 6:1-18</span>; Libros de <span class="verse-in-text-trigger" data-verse-ref="Hageo 1:1-15; 2:1-9">Hageo</span> y <span class="verse-in-text-trigger" data-verse-ref="Zacarias 1:1-6, 12-17; 4:1-10; 8:1-17">Zacarías 1:1-6, 12-17; 4:1-10; 8:1-17</span>.</li>
+                <li>Ministerio de Esdras (enseñanza de la Ley, matrimonios mixtos): <span class="verse-in-text-trigger" data-verse-ref="Esdras 7:1-10, 27-28; 9:1-15; 10:1-17">Esdras 7:1-10, 27-28; 9:1-15; 10:1-17</span>; <span class="verse-in-text-trigger" data-verse-ref="Nehemias 8:1-12">Nehemías 8:1-12</span>.</li>
+                <li>Ministerio de Nehemías (reconstrucción de murallas, reformas): Libro de <span class="verse-in-text-trigger" data-verse-ref="Nehemias">Nehemías</span> (ej. <span class="verse-in-text-trigger" data-verse-ref="Nehemias 2:11-20; 4:1-23; 6:1-16">2:11-20; 4:1-23; 6:1-16</span>, <span class="verse-in-text-trigger" data-verse-ref="Nehemias 13:4-31">13:4-31</span>).</li>
+                <li>Profecías de restauración y esperanza del "Segundo Isaías": <span class="verse-in-text-trigger" data-verse-ref="Isaias 40:1-11">Isaías 40:1-11</span>, <span class="verse-in-text-trigger" data-verse-ref="Isaias 43:1-21">43:1-21</span>, <span class="verse-in-text-trigger" data-verse-ref="Isaias 44:24-45:7">44:24-45:7</span>, <span class="verse-in-text-trigger" data-verse-ref="Isaias 52:7-12">52:7-12</span>, <span class="verse-in-text-trigger" data-verse-ref="Isaias 54:1-17">54:1-17</span>, <span class="verse-in-text-trigger" data-verse-ref="Isaias 55:1-13">55:1-13</span>.</li>
+                <li>Profecías de Malaquías sobre la reforma post-exílica: Libro de <span class="verse-in-text-trigger" data-verse-ref="Malaquias 1:6-14; 2:17-3:5; 3:13-4:3">Malaquías</span>.</li>
+                <li>Contexto de la Revuelta Macabea: Libros de <span class="verse-in-text-trigger" data-verse-ref="1 Macabeos 1:10-64; 2:1-28; 4:36-61">1 Macabeos</span> y <span class="verse-in-text-trigger" data-verse-ref="2 Macabeos 6:18-7:42">2 Macabeos</span>.</li>
+                <li>Profecías de Daniel sobre imperios y el futuro: <span class="verse-in-text-trigger" data-verse-ref="Daniel 7:1-28; 8:1-27; 9:20-27; 11:21-45; 12:1-4">Daniel 7-12</span>.</li>
+            </ul>
+        </section>
+
+
+    <div id="contentModal" class="fixed inset-0 bg-slate-900 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center hidden z-[100] p-4">
+        <div class="modal-dialog-content relative w-full">
+            <div class="flex justify-between items-center">
+                <h4 id="contentModalTitle" class="text-xl font-semibold text-slate-800">Información</h4>
+                <button id="closeContentModal" class="text-slate-500 hover:text-slate-900">
+                    <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div id="contentLoading" class="text-center py-10 hidden">
+                <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-slate-700 mx-auto"></div>
+                <p class="mt-4 text-slate-600 text-lg">Procesando, por favor espera...</p>
+            </div>
+            <div id="contentResponseArea" class="text-slate-700 modal-content-text">
+            </div>
+        </div>
+    </div>
+
+
+    <footer class="bg-white mt-16 border-t border-slate-200">
+        <div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 text-center text-slate-500 text-sm">
+            <p>&copy; 2024 Explorador Interactivo del Exilio Babilónico. Contenido adaptado del informe.</p>
+        </div>
+    </footer>
+
+<script>
+    // Data extracted from the report
+    const reyesAntesDelExilioData = [
+        { nombre: "Josías", fechas: "640–609 a.C.", eventos: "Reforma religiosa (2 Reyes 22-23). Murió en Meguido (2 Reyes 23:29-30).", detalles: "Considerado un rey 'bueno', impulsó una profunda reforma religiosa tras el hallazgo del 'Libro de la Ley'. Murió trágicamente en batalla, marcando un punto de inflexión para Judá." },
+        { nombre: "Joacaz (Salum)", fechas: "609 a.C. (3 meses)", eventos: "Depuesto y exiliado a Egipto por Necao II (2 Reyes 23:31-34).", detalles: "Reinó brevemente antes de ser depuesto por el Faraón Necao II, evidenciando la pérdida de autonomía de Judá." },
+        { nombre: "Joacim (Eliaquim)", fechas: "609–598 a.C.", eventos: "Vasallo de Egipto, luego de Babilonia. Primera deportación (605 a.C.) (Daniel 1:1-7). Rebelión contra Babilonia. Quemó el rollo de Jeremías (Jeremías 36).", detalles: "Instalado por Egipto, luego sometido a Babilonia. Se rebeló, ignorando a Jeremías. Quemó las profecías, mostrando su desafío." },
+        { nombre: "Joaquín (Jeconías)", fechas: "598–597 a.C. (3 meses)", eventos: "Se rindió a Nabucodonosor. Segunda deportación (597 a.C.) (2 Reyes 24:10-16).", detalles: "Reinó brevemente y se rindió a Babilonia, lo que llevó a una deportación masiva de la élite, incluyendo a Ezequiel. Fue liberado más tarde en Babilonia." },
+        { nombre: "Sedequías (Matanías)", fechas: "597–586 a.C.", eventos: "Instalado por Nabucodonosor. Rebelión contra Babilonia. Destrucción de Jerusalén y el Templo (586 a.C.) (2 Reyes 25). Tercera deportación.", detalles: "Último rey de Judá. A pesar de su juramento, se rebeló contra Babilonia, lo que llevó al asedio final, la destrucción del Templo y su propio terrible destino." }
+    ];
+
+    const profetasAntesData = [
+        { nombre: "Isaías", mensaje: "Denunció la rebelión de Judá (Isaías 1), la corrupción social (Isaías 5) y predijo la cautividad babilónica (Isaías 39). Ofreció visiones de juicio y restauración mesiánica.", versiculos: "Isaías 1:2-20, 5:1-7, 39:1-8" },
+        { nombre: "Miqueas", mensaje: "Predicó contra la opresión y la corrupción. Anunció la destrucción de Jerusalén (Miqueas 3:12) y el exilio a Babilonia (Miqueas 4:10), pero también una futura restauración y un gobernante de Belén (Miqueas 5:2).", versiculos: "Miqueas 3:9-12, 4:9-10, 5:2-4" },
+        { nombre: "Nahúm", mensaje: "Su profecía se centra en la caída de Nínive, capital asiria (Nahúm 1-3). La destrucción de Asiria abrió camino al ascenso de Babilonia.", versiculos: "Nahúm 1:1-15, 2:1-13, 3:1-19" },
+        { nombre: "Habacuc", mensaje: "Luchó con la justicia de Dios al usar a los babilonios para castigar a Judá (Habacuc 1:6, 12-17). Concluye con una oración de fe (Habacuc 3). Famoso por 'el justo por su fe vivirá' (Habacuc 2:4).", versiculos: "Habacuc 1:1-17, 2:1-4, 3:1-19" },
+        { nombre: "Sofonías", mensaje: "Proclamó el inminente 'día del Señor' como juicio sobre Judá y las naciones (Sofonías 1:14-18). Ofreció esperanza para un remanente purificado (Sofonías 3:9-20).", versiculos: "Sofonías 1:14-18, 3:1-8, 3:9-20" },
+        { nombre: "Jeremías", mensaje: "El 'profeta llorón'. Denunció la falsa seguridad en el Templo (Jeremías 7) y la corrupción. Anunció 70 años de cautiverio (Jeremías 25:11-12) y aconsejó sumisión a Babilonia (Jeremías 27).", versiculos: "Jeremías 7:1-15, 25:1-14, 27:1-22, 29:1-14" }
+    ];
+    
+    const figurasDuranteData = [
+        { nombre: "Gedalías, hijo de Ahicam", rol: "Gobernador de Judea", ubicacion: "Judea (Mizpa)", notas: "Nombrado por Nabucodonosor (2 Reyes 25:22). Asesinado (Jeremías 41)." },
+        { nombre: "Joaquín (Jeconías)", rol: "Rey exiliado de Judá", ubicacion: "Babilonia", notas: "Liberado y honrado por Evil-Merodac (2 Reyes 25:27-30)." },
+        { nombre: "Ezequiel", rol: "Profeta, Sacerdote", ubicacion: "Babilonia", notas: "Profetizó juicio y restauración (Ezequiel 37, 40-48)." },
+        { nombre: "Daniel", rol: "Profeta, Funcionario de la corte", ubicacion: "Babilonia/Persia", notas: "Sirvió en cortes imperiales; visiones apocalípticas (Daniel 2, 7)." },
+        { nombre: "Ancianos", rol: "Líderes comunitarios", ubicacion: "Babilonia", notas: "Mantuvieron cohesión social y religiosa (Ezequiel 8:1; Jeremías 29:1)." },
+        { nombre: "Autores de Lamentaciones", rol: "Poetas/Cronistas", ubicacion: "Judea/Babilonia", notas: "Expresaron el trauma del exilio." },
+        { nombre: "Salmistas (ej. Salmo 137)", rol: "Poetas", ubicacion: "Babilonia", notas: "Articularon el dolor y el anhelo de los exiliados." }
+    ];
+
+    const gobernadoresPersaData = [
+        { nombre: "Sesbasar", fechas: "c. 538 a.C. en adelante", logros: "Lideró el primer retorno. Inició la reconstrucción del Templo.", detalles: "Nombrado 'príncipe de Judá' por Ciro, devolvió los utensilios del Templo y puso los cimientos del Segundo Templo (Esdras 1, 5)." },
+        { nombre: "Zorobabel", fechas: "c. 520 – c. 510 a.C.", logros: "Descendiente de David. Completó la reconstrucción del Segundo Templo.", detalles: "Gobernador de linaje davídico, completó el Templo con el Sumo Sacerdote Jesúa, animado por Hageo y Zacarías (Esdras 3-6)." },
+        { nombre: "Esdras", fechas: "Llegada c. 458 o 398 a.C.", logros: "Sacerdote y escriba. Reformas religiosas basadas en la Ley.", detalles: "Lideró un retorno y promulgó la Ley de Moisés, enfocándose en la pureza comunitaria y la disolución de matrimonios mixtos (Esdras 7-10)." },
+        { nombre: "Nehemías", fechas: "1er término: 445–433 a.C.", logros: "Copero real. Reconstruyó las murallas de Jerusalén.", detalles: "Nombrado gobernador por Artajerjes I, reconstruyó las murallas de Jerusalén e implementó reformas sociales y religiosas (Nehemías)." }
+    ];
+    
+    const gobernadoresAsmoneosData = [
+        { nombre: "Judas Macabeo", titulo: "Líder Militar", fechas: "c. 166–160 a.C.", eventos: "Lideró la revuelta; purificó el Templo (1 Macabeos 3-4).", detalles: "Hijo de Matatías, lideró la Revuelta Macabea, logrando victorias clave y la rededicación del Templo (Hanukkah)." },
+        { nombre: "Jonatán Macabeo", titulo: "Líder, Sumo Sacerdote", fechas: "c. 160–143 a.C.", eventos: "Nombrado Sumo Sacerdote (1 Macabeos 10).", detalles: "Hermano de Judas, unió liderazgo político-militar con el sumo sacerdocio." },
+        { nombre: "Simón Macabeo", titulo: "Etnarca, Sumo Sacerdote", fechas: "142–135 a.C.", eventos: "Logró la independencia política (1 Macabeos 13-14).", detalles: "Último de los hermanos, obtuvo independencia y fue proclamado líder hereditario." },
+        { nombre: "Juan Hircano I", titulo: "Etnarca, Sumo Sacerdote", fechas: "135/134–104 a.C.", eventos: "Expandió el territorio.", detalles: "Hijo de Simón, expandió Judea, conquistó Idumea y Samaria." },
+        { nombre: "Aristóbulo I", titulo: "Rey, Sumo Sacerdote", fechas: "104–103 a.C.", eventos: "Primer asmoneo en tomar el título de 'Rey'.", detalles: "Primer Asmoneo en autoproclamarse Rey." },
+        { nombre: "Alejandro Janneo", titulo: "Rey, Sumo Sacerdote", fechas: "103–76 a.C.", eventos: "Expansión militar; conflictos internos.", detalles: "Reinó con expansión y severos conflictos internos, especialmente con los Fariseos." },
+        { nombre: "Salomé Alejandra", titulo: "Reina", fechas: "76–67 a.C.", eventos: "Única reina asmonea; período de paz.", detalles: "Esposa de Aristóbulo I y Alejandro Janneo, gobernó en un período de paz, favoreciendo a los Fariseos." },
+        { nombre: "Hircano II", titulo: "Rey (brevemente), Etnarca, Sumo Sacerdote", fechas: "67; 63–40 a.C.", eventos: "Guerra civil; restaurado por Pompeyo.", detalles: "Involucrado en guerra civil con su hermano Aristóbulo II, lo que llevó a la intervención romana." },
+        { nombre: "Aristóbulo II", titulo: "Rey, Sumo Sacerdote", fechas: "67–63 a.C.", eventos: "Derrocó a Hircano II; depuesto por Pompeyo.", detalles: "Luchó contra Hircano II por el poder, fue depuesto por Pompeyo." },
+        { nombre: "Antígono Matatías", titulo: "Rey, Sumo Sacerdote", fechas: "40–37 a.C.", eventos: "Último rey asmoneo; ejecutado por los romanos.", detalles: "Último rey Asmoneo, instalado con ayuda parta, fue derrotado y ejecutado por Herodes y los romanos." }
+    ];
+
+    const gobernadoresRomanosData = [
+        { nombre: "Herodes I el Grande", titulo: "Rey de Judea", fechas: "40/37–4 a.C.", notas: "Reconstrucción del Templo; gobierno tiránico.", detalles: "Nombrado por Roma, fue un gran constructor (incluyendo la expansión del Templo) pero también un gobernante cruel y paranoico." },
+        { nombre: "Herodes Arquelao", titulo: "Etnarca", fechas: "4 a.C.–6 d.C.", notas: "Depuesto; Judea se convierte en provincia romana.", detalles: "Hijo de Herodes, gobernó Judea, Samaria e Idumea. Su brutalidad llevó a su deposición por Roma." },
+        { nombre: "Herodes Antipas", titulo: "Tetrarca", fechas: "4 a.C.–39 d.C.", notas: "Gobernó Galilea y Perea. Ejecutó a Juan el Bautista.", detalles: "Hijo de Herodes, gobernó Galilea y Perea. Conocido por su rol en los Evangelios." },
+        { nombre: "Herodes Agripa I", titulo: "Rey", fechas: "37/41–44 d.C.", notas: "Reunificó brevemente el reino.", detalles: "Nieto de Herodes el Grande, amigo de emperadores romanos, reunió gran parte del reino de su abuelo y fue popular entre algunos judíos." },
+        { nombre: "Poncio Pilato", titulo: "Prefecto de Judea", fechas: "26–36 d.C.", notas: "Juicio y crucifixión de Jesús.", detalles: "Gobernador romano de Judea, conocido por su papel en el juicio de Jesús. Su mandato fue conflictivo." },
+        { nombre: "Gessius Florus", titulo: "Procurador de Judea", fechas: "64–66 d.C.", notas: "Su mal gobierno contribuyó a la Primera Revuelta Judía.", detalles: "Último procurador antes de la Primera Revuelta Judía; su corrupción y brutalidad fueron un detonante clave del conflicto." }
+    ];
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const navButtons = document.querySelectorAll('.nav-button'); // For Conclusión, Fuentes
+        const homeButton = document.getElementById('homeButton');
+        const mobileMenuNavButtons = document.querySelectorAll('#mobile-menu .nav-button');
+        const exploreSectionButtons = document.querySelectorAll('.explore-section-btn');
+        
+        const allContentSections = document.querySelectorAll('.content-section');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        const contentModal = document.getElementById('contentModal');
+        const contentModalTitle = document.getElementById('contentModalTitle');
+        const closeContentModalButton = document.getElementById('closeContentModal');
+        const contentLoading = document.getElementById('contentLoading');
+        const contentResponseArea = document.getElementById('contentResponseArea');
+
+        function showContentModal() { contentModal.classList.remove('hidden'); }
+        function hideContentModal() { contentModal.classList.add('hidden'); contentLoading.classList.add('hidden'); contentResponseArea.innerHTML = ''; }
+        function showContentLoading() { contentLoading.classList.remove('hidden'); contentResponseArea.innerHTML = ''; }
+        function setContentResponse(html) { contentLoading.classList.add('hidden'); contentResponseArea.innerHTML = html; }
+
+        closeContentModalButton.addEventListener('click', hideContentModal);
+        contentModal.addEventListener('click', function(event) {
+            if (event.target === contentModal) { 
+                hideContentModal();
+            }
+        });
+
+        async function callGeminiAPIForAnalysis(prompt, modalTitle) {
+            contentModalTitle.textContent = modalTitle;
+            showContentModal();
+            showContentLoading();
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) { const errorData = await response.json(); throw new Error(`API Error: ${response.status} ${response.statusText}. Details: ${JSON.stringify(errorData)}`); }
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                    let text = result.candidates[0].content.parts[0].text;
+                    text = text.replace(/\n\n+/g, '</p><p>'); text = text.replace(/\n/g, '<br>'); text = `<p>${text}</p>`;
+                    text = text.replace(/<p><br>/g, '<p>').replace(/<br><\/p>/g, '</p>');
+                    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');     
+                    text = text.replace(/<br>(\d+\.\s)/g, '</p><ol><li>$1'); text = text.replace(/<br>([\-\*]\s)/g, '</p><ul><li>');
+                    text = text.replace(/<br>(\d+\.\s)/g, '</li><li>$1'); text = text.replace(/<br>([\-\*]\s)/g, '</li><li>');
+                    text = text.replace(/<\/li>(?!<li>)/g, '</li></ul></p>'); text = text.replace(/<\/li>(?!<li>)/g, '</li></ol></p>');
+                    setContentResponse(text);
+                } else { setContentResponse("<p>No se pudo obtener una respuesta válida de la IA.</p>"); }
+            } catch (error) { console.error("Error calling Gemini API:", error); setContentResponse(`<p>Error: ${error.message}</p>`); }
+        }
+        
+        async function fetchVerseTextWithGemini(verseRef, modalTitlePrefix = "Texto Bíblico") {
+            contentModalTitle.textContent = `${modalTitlePrefix}: ${verseRef}`;
+            showContentModal();
+            showContentLoading();
+            const prompt = `Por favor, proporciona el texto completo de ${verseRef} según la Nueva Traducción Viviente (NTV). Si es un rango de versículos o múltiples versículos no contiguos, muestra el texto de todos ellos, indicando claramente cada referencia. Formatea la respuesta como HTML semántico, usando párrafos (<p>) para cada bloque de texto y, si es apropiado, encabezados (<h5>) para títulos o secciones dentro de la respuesta. Asegúrate de que los números de los versículos sean visibles y distintivos (por ejemplo, usando <strong> o una clase 'verse-number'). Evita usar saltos de línea (<br>) excesivos; prefiere párrafos para la estructura.`;
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                 if (!response.ok) { const errorData = await response.json(); throw new Error(`API Error: ${response.status} ${response.statusText}. Details: ${JSON.stringify(errorData)}`); }
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                    let text = result.candidates[0].content.parts[0].text;
+                    text = text.replace(/\n\n+/g, '</p><p>'); text = text.replace(/\n/g, '<br>'); text = `<p>${text}</p>`;
+                    text = text.replace(/<p><br>/g, '<p>').replace(/<br><\/p>/g, '</p>'); 
+                    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    text = text.replace(/(\b\d+[:\.]\d+[-]?\d*\b)/g, '<strong class="verse-number">$1</strong>'); 
+                    setContentResponse(`<div>${text}</div>`);
+                } else { setContentResponse("<p>No se pudo obtener el texto del versículo.</p>"); }
+            } catch (error) { console.error("Error fetching verse text with Gemini:", error); setContentResponse(`<p>Error al obtener versículo: ${error.message}</p>`); }
+        }
+
+        function setActiveSection(targetId) {
+            allContentSections.forEach(section => {
+                section.classList.remove('active');
+                if (section.id === targetId) {
+                    section.classList.add('active');
+                }
+            });
+            // Update nav button active states
+            navButtons.forEach(btn => {
+                 btn.classList.toggle('active', btn.dataset.tab === targetId);
+            });
+            mobileMenuNavButtons.forEach(btn => {
+                 btn.classList.toggle('active', btn.dataset.tab === targetId);
+            });
+
+            window.scrollTo(0, 0); // Scroll to top
+        }
+        
+        // Initial active section (Home)
+        setActiveSection('home');
+        
+        homeButton.addEventListener('click', () => {
+            setActiveSection('home');
+            mobileMenu.classList.add('hidden');
+        });
+
+        navButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                setActiveSection(button.dataset.tab);
+            });
+        });
+        mobileMenuNavButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                setActiveSection(button.dataset.tab);
+                mobileMenu.classList.add('hidden');
+            });
+        });
+
+        exploreSectionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const targetSectionId = button.dataset.targetSection;
+                setActiveSection(targetSectionId);
+                if (targetSectionId === 'despues') {
+                    const firstSubTab = document.querySelector('.sub-tab-button[data-subtab="persa"]');
+                    if (firstSubTab) handleSubTabClick(firstSubTab);
+                }
+            });
+        });
+        
+        const profetasAccordionContainer = document.getElementById('profetasAntesAccordion');
+        profetasAntesData.forEach(profeta => {
+            const item = document.createElement('div');
+            item.classList.add('accordion-item');
+            item.innerHTML = `
+                <div class="accordion-header flex justify-between items-center">
+                    <span class="text-xl font-semibold text-slate-800">${profeta.nombre}</span>
+                    <span class="arrow text-2xl">&#x276F;</span>
+                </div>
+                <div class="accordion-content">
+                    <p class="mb-3 text-slate-600">${profeta.mensaje}</p>
+                    <p class="text-sm text-slate-500 mb-4"><strong>Versículos Clave:</strong> ${profeta.versiculos}</p>
+                    <div class="flex flex-wrap gap-3">
+                        <button class="action-button gemini-button profeta-gemini-btn" data-profeta-nombre="${profeta.nombre}" data-profeta-versiculos="${profeta.versiculos}">✨ Profundizar Mensaje</button>
+                        <button class="action-button verse-modal-button profeta-verse-btn" data-verse-ref="${profeta.versiculos}" data-profeta-nombre="${profeta.nombre}">📖 Ver Versículos (NTV)</button>
+                    </div>
+                </div>
+            `;
+            profetasAccordionContainer.appendChild(item);
+        });
+
+        document.querySelectorAll('.accordion-header').forEach(header => {
+            header.addEventListener('click', function() { this.parentElement.classList.toggle('active'); });
+        });
+
+        document.querySelectorAll('.profeta-gemini-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const nombreProfeta = this.dataset.profetaNombre;
+                const versiculosProfeta = this.dataset.profetaVersiculos;
+                const prompt = `Explica con más detalle el mensaje del profeta ${nombreProfeta} en relación con el exilio babilónico, incluyendo su contexto histórico, temas principales y la relevancia de los versículos clave: ${versiculosProfeta}. Formatea la respuesta como HTML semántico, usando párrafos (<p>), listas (<ul>, <ol>), y si es apropiado, encabezados (<h5>) para estructurar la información. Evita usar saltos de línea (<br>) excesivos; prefiere párrafos para la estructura. Mantén un tono informativo y adecuado para un contexto de estudio bíblico.`;
+                callGeminiAPIForAnalysis(prompt, `Análisis: Mensaje de ${nombreProfeta}`);
+            });
+        });
+
+        document.querySelectorAll('.profeta-verse-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                fetchVerseTextWithGemini(this.dataset.verseRef, `Versículos de ${this.dataset.profetaNombre}`);
+            });
+        });
+
+        document.querySelector('main').addEventListener('click', function(event) {
+            if (event.target.matches('.verse-in-text-trigger')) {
+                fetchVerseTextWithGemini(event.target.dataset.verseRef);
+            }
+        });
+        
+        function populateTable(tableId, data, columns) {
+            const tbody = document.getElementById(tableId);
+            if (!tbody) return;
+            tbody.innerHTML = ''; 
+            data.forEach(item => {
+                const row = tbody.insertRow();
+                columns.forEach(column => {
+                    const cell = row.insertCell();
+                    cell.textContent = item[column.key] || '';
+                    cell.className = 'px-6 py-4 whitespace-nowrap text-sm'; 
+                    if(columns.indexOf(column) === 0) cell.classList.add('font-medium', 'text-slate-900');
+                    else cell.classList.add('text-slate-600');
+                });
+            });
+        }
+
+        populateTable('tablaReyesAntes', reyesAntesDelExilioData, [ { key: 'nombre' }, { key: 'fechas' }, { key: 'eventos' } ]);
+        populateTable('tablaFigurasDurante', figurasDuranteData, [ { key: 'nombre' }, { key: 'rol' }, { key: 'ubicacion' }, { key: 'notas' } ]);
+        populateTable('tablaGobernadoresPersa', gobernadoresPersaData, [ { key: 'nombre' }, { key: 'fechas' }, { key: 'logros' } ]);
+        populateTable('tablaGobernadoresAsmoneos', gobernadoresAsmoneosData, [ { key: 'nombre' }, { key: 'titulo' }, { key: 'fechas' }, { key: 'eventos' } ]);
+        populateTable('tablaGobernadoresRomanos', gobernadoresRomanosData, [ { key: 'nombre' }, { key: 'titulo' }, { key: 'fechas' }, { key: 'notas' } ]);
+
+        mobileMenuButton.addEventListener('click', () => { mobileMenu.classList.toggle('hidden'); });
+
+        const subTabs = document.querySelectorAll('.sub-tab-button');
+        const subContents = document.querySelectorAll('.sub-content-section');
+
+        function handleSubTabClick(subTab) {
+            const subTarget = subTab.dataset.subtab;
+            subTabs.forEach(st => st.classList.remove('active'));
+            subTab.classList.add('active');
+            subContents.forEach(subContent => {
+                subContent.classList.add('hidden'); 
+                if (subContent.id === subTarget) subContent.classList.remove('hidden');
+            });
+        }
+        subTabs.forEach(subTab => { subTab.addEventListener('click', () => handleSubTabClick(subTab)); });
+        
+        // Chart.js configurations
+        const chartBaseOptions = {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            scales: { x: { beginAtZero: false, ticks: { color: '#475569' }, grid: { color: '#e2e8f0' } }, y: { ticks: { color: '#475569' }, grid: { display: false } } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.85)', titleColor: '#f1f5f9', bodyColor: '#cbd5e1', padding: 12, cornerRadius: 6,
+                    titleFont: { weight: 'bold', size: 14 }, bodyFont: { size: 12 },
+                    callbacks: {
+                        label: function(context) { return `${context.raw.nombre}: ${context.raw.fechas}`; },
+                        afterLabel: function(context) { const e = context.raw.eventos || context.raw.logros || context.raw.notas; return e ? e.substring(0,100) + (e.length > 100 ? '...' : '') : ''; }
+                    }
+                }
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const chartElement = elements[0];
+                    const data = event.chart.data.datasets[chartElement.datasetIndex].data[chartElement.index];
+                    const detalleDivId = event.chart.canvas.id.replace('Chart', 'Detalle');
+                    const detalleDiv = document.getElementById(detalleDivId);
+                    if (detalleDiv) {
+                        let htmlContent = `<h4 class="text-xl font-semibold text-slate-800 mb-2">${data.nombre} (${data.fechas})</h4>`;
+                        if(data.detalles) htmlContent += `<p class="mb-4 text-slate-600">${data.detalles}</p>`;
+                        else if (data.eventos || data.logros || data.notas) htmlContent += `<p class="mb-4 text-slate-600">${data.eventos || data.logros || data.notas}</p>`;
+                        const geminiButton = document.createElement('button');
+                        geminiButton.className = 'action-button gemini-button ruler-gemini-btn';
+                        geminiButton.innerHTML = '✨ Analizar Impacto';
+                        geminiButton.onclick = function() {
+                            const prompt = `Analiza el impacto y la importancia del reinado o gobierno de ${data.nombre} (${data.fechas}) en el contexto de los eventos relacionados con el exilio babilónico (antes, durante o después). Considera sus decisiones clave, el clima socio-político y las consecuencias de sus acciones según los relatos bíblicos e históricos. Formatea la respuesta como HTML semántico, usando párrafos (<p>), listas (<ul>, <ol>), y si es apropiado, encabezados (<h5>) para estructurar la información. Evita usar saltos de línea (<br>) excesivos; prefiere párrafos para la estructura.`;
+                            callGeminiAPIForAnalysis(prompt, `Análisis: Impacto de ${data.nombre}`);
+                        };
+                        detalleDiv.innerHTML = htmlContent;
+                        detalleDiv.appendChild(geminiButton);
+                        detalleDiv.classList.remove('hidden');
+                    }
+                }
+            }
+        };
+        
+        function createTimelineChart(canvasId, rawData, labelField = 'nombre', startField = 'startYear', endField = 'endYear', isBC = true) {
+            const ctx = document.getElementById(canvasId)?.getContext('2d');
+            if (!ctx) return;
+            const transformedData = rawData.map(item => {
+                const [datePart1, datePart2] = item.fechas.split('–');
+                let start = parseInt(datePart1.replace(/c\.\s*|a\.C\.|d\.C\.|\(.*?\)/g, '').trim());
+                let end = datePart2 ? parseInt(datePart2.replace(/c\.\s*|a\.C\.|d\.C\.|\(.*?\)/g, '').trim()) : start;
+                return { ...item, [startField]: isBC ? start : -start, [endField]: isBC ? end : -end };
+            });
+            const years = transformedData.flatMap(d => [d[startField], d[endField]]);
+            let minYear = Math.min(...years); let maxYear = Math.max(...years);
+            const chartData = {
+                labels: transformedData.map(d => d[labelField]),
+                datasets: [{
+                    label: 'Reinado/Gobierno',
+                    data: transformedData.map(d => ({ x: isBC ? [d[endField], d[startField]] : [-d[startField], -d[endField]], y: d[labelField], nombre: d.nombre, fechas: d.fechas, eventos: d.eventos, logros: d.logros, notas: d.notas, detalles: d.detalles })),
+                    backgroundColor: `rgba(14, 165, 233, 0.6)`, // sky-500
+                    borderColor: `rgba(2, 132, 199, 1)`, // sky-600
+                    borderWidth: 1, barPercentage: 0.7, categoryPercentage: 0.9, borderRadius: 4
+                }]
+            };
+            let specificOptions = JSON.parse(JSON.stringify(chartBaseOptions)); 
+            if (isBC) {
+                specificOptions.scales.x.reverse = true;
+                specificOptions.scales.x.ticks.callback = function(value) { return Math.abs(value) + ' a.C.'; };
+                specificOptions.scales.x.min = maxYear - 5; specificOptions.scales.x.max = minYear + 5; 
+            } else { 
+                specificOptions.scales.x.reverse = false;
+                specificOptions.scales.x.ticks.callback = function(value) { return Math.abs(value) + ' d.C.'; };
+                specificOptions.scales.x.min = Math.abs(maxYear) - 5; specificOptions.scales.x.max = Math.abs(minYear) + 5; 
+            }
+            new Chart(ctx, { type: 'bar', data: chartData, options: specificOptions });
+        }
+        
+        createTimelineChart('reyesAntesChart', reyesAntesDelExilioData, 'nombre', 'startYear', 'endYear', true);
+        createTimelineChart('gobernadoresPersaChart', gobernadoresPersaData, 'nombre', 'startYear', 'endYear', true);
+        createTimelineChart('gobernadoresAsmoneoChart', gobernadoresAsmoneosData, 'nombre', 'startYear', 'endYear', true);
+        
+        const gobernadoresRomanosProcessedData = gobernadoresRomanosData.map(g => {
+            const isAC = g.fechas.includes('a.C.');
+            let startNum, endNum; const dates = g.fechas.split('–');
+            startNum = parseInt(dates[0].replace(/\D/g, ''));
+            endNum = dates.length > 1 ? parseInt(dates[1].replace(/\D/g, '')) : startNum;
+            return { ...g, startYear: isAC ? startNum : -startNum, endYear: isAC ? endNum : -endNum, isBCPeriod: isAC };
+        });
+        createTimelineChart('gobernadoresRomanoChart', gobernadoresRomanosProcessedData, 'nombre', 'startYear', 'endYear', false);
+
+    });
+</script>
+</body>
+</html>
