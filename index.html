@@ -8,9 +8,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Visualization & Content Choices: 
         Home Page: Intro + 3 cards (Image, Title, Desc, Button) for main sections.
-        Kings/Governors: Interactive Timelines (Chart.js). Click for detail + Gemini "Analizar Impacto".
-        Prophetic messages: Accordion. Expand + Gemini "Profundizar Mensaje" + "Ver Versículos" (Gemini modal).
-        API Key Management: New settings modal for user to input and save their Gemini API Key to localStorage. Gemini calls check for this key.
+        Kings/Governors (in detailed sections): Interactive Timelines (Chart.js). Click for detail + Gemini "Analizar Impacto". X-axis logic for Roman chart (BC/AD) fixed. Y-axis order for Roman rulers slightly adjusted.
+        Prophetic messages (in detailed sections): Accordion. Expand + Gemini "Profundizar Mensaje" + "Ver Versículos" (Gemini modal).
+        Contextual Navigation: Buttons at the bottom of "Antes", "Durante", "Después" sections for sequential navigation.
+        API Key Management: Settings modal for user to input and save their Gemini API Key to localStorage. Gemini calls check for this key.
         Modal UI: Modern, clean, enhanced typography.
     -->
     <style>
@@ -86,8 +87,7 @@
         .fuentes-list { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; padding-left: 1rem; }
         .fuentes-list li { margin-bottom: 0.5rem; }
 
-        /* Modal Styles (Content and API Key) */
-        .modal-backdrop { background-color: rgba(15, 23, 42, 0.75); /* slate-900 with opacity */ }
+        .modal-backdrop { background-color: rgba(15, 23, 42, 0.75); }
         .modal-dialog-content {
             background-color: #ffffff; border-radius: 1rem; 
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
@@ -153,16 +153,24 @@
         .home-section-card img { width: 100%; height: 200px; object-fit: cover; }
 
         .api-key-input {
-            width: 100%; padding: 0.75rem 1rem; border-radius: 0.375rem; /* rounded-md */
-            border: 1px solid #cbd5e1; /* slate-300 */
+            width: 100%; padding: 0.75rem 1rem; border-radius: 0.375rem; 
+            border: 1px solid #cbd5e1; 
             margin-bottom: 1rem;
-            font-size: 0.875rem; /* text-sm */
+            font-size: 0.875rem; 
         }
         .api-key-input:focus {
             outline: 2px solid transparent;
             outline-offset: 2px;
-            border-color: #38bdf8; /* sky-500 */
+            border-color: #38bdf8; 
             box-shadow: 0 0 0 2px #38bdf8;
+        }
+        .contextual-nav-buttons {
+            margin-top: 2.5rem; /* mt-10 */
+            padding-top: 1.5rem; /* pt-6 */
+            border-top: 1px solid #e2e8f0; /* border-slate-200 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
     </style>
@@ -258,6 +266,10 @@
             <div id="profetasAntesAccordion" class="space-y-4"></div>
             <h3 class="text-2xl font-semibold text-slate-800 mt-10 mb-4">Tabla Resumen: Últimos Reyes de Judá</h3>
             <div class="table-container"> <table class="min-w-full"> <thead> <tr> <th>Nombre del Rey</th> <th>Fechas (aprox.)</th> <th>Eventos Clave</th> </tr> </thead> <tbody id="tablaReyesAntes" class="divide-y divide-slate-200"></tbody> </table> </div>
+            <div class="contextual-nav-buttons">
+                <span></span>
+                <button class="action-button gemini-button explore-section-btn" data-target-section="durante">Siguiente Sección: Durante el Exilio &rarr;</button>
+            </div>
         </section>
 
         <section id="durante" class="content-section content-card">
@@ -293,6 +305,10 @@
             </div>
             <h3 class="text-2xl font-semibold text-slate-800 mt-10 mb-4">Tabla Resumen: Figuras Clave Durante el Exilio</h3>
             <div class="table-container"> <table class="min-w-full"> <thead> <tr> <th>Nombre</th> <th>Rol/Título</th> <th>Ubicación</th> <th>Notas</th> </tr> </thead> <tbody id="tablaFigurasDurante" class="divide-y divide-slate-200"></tbody> </table> </div>
+            <div class="contextual-nav-buttons">
+                <button class="action-button gemini-button explore-section-btn" data-target-section="antes">&larr; Sección Anterior: Antes del Exilio</button>
+                <button class="action-button gemini-button explore-section-btn" data-target-section="despues">Siguiente Sección: Después del Exilio &rarr;</button>
+            </div>
         </section>
 
         <section id="despues" class="content-section content-card">
@@ -322,6 +338,10 @@
                 <div id="gobernadorRomanoDetalle" class="p-6 bg-slate-50 rounded-xl shadow-md hidden mt-6"></div>
                 <h4 class="text-xl font-semibold text-slate-800 mt-8 mb-4">Tabla Resumen: Gobernantes Romanos Tempranos</h4>
                 <div class="table-container"> <table class="min-w-full"> <thead> <tr> <th>Gobernante</th> <th>Título(s)</th> <th>Fechas (aprox.)</th> <th>Notas</th> </tr> </thead> <tbody id="tablaGobernadoresRomanos" class="divide-y divide-slate-200"></tbody> </table> </div>
+            </div>
+            <div class="contextual-nav-buttons">
+                <button class="action-button gemini-button explore-section-btn" data-target-section="durante">&larr; Sección Anterior: Durante el Exilio</button>
+                <span></span>
             </div>
         </section>
 
@@ -397,7 +417,6 @@
         </div>
     </div>
 
-
     <footer class="bg-white mt-16 border-t border-slate-200">
         <div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 text-center text-slate-500 text-sm">
             <p>&copy; 2024 Explorador Interactivo del Exilio Babilónico. Contenido adaptado del informe.</p>
@@ -410,7 +429,14 @@
     const figurasDuranteData = [ { nombre: "Gedalías, hijo de Ahicam", rol: "Gobernador de Judea", ubicacion: "Judea (Mizpa)", notas: "Nombrado por Nabucodonosor (2 Reyes 25:22). Asesinado (Jeremías 41)." }, { nombre: "Joaquín (Jeconías)", rol: "Rey exiliado de Judá", ubicacion: "Babilonia", notas: "Liberado y honrado por Evil-Merodac (2 Reyes 25:27-30)." }, { nombre: "Ezequiel", rol: "Profeta, Sacerdote", ubicacion: "Babilonia", notas: "Profetizó juicio y restauración (Ezequiel 37, 40-48)." }, { nombre: "Daniel", rol: "Profeta, Funcionario de la corte", ubicacion: "Babilonia/Persia", notas: "Sirvió en cortes imperiales; visiones apocalípticas (Daniel 2, 7)." }, { nombre: "Ancianos", rol: "Líderes comunitarios", ubicacion: "Babilonia", notas: "Mantuvieron cohesión social y religiosa (Ezequiel 8:1; Jeremías 29:1)." }, { nombre: "Autores de Lamentaciones", rol: "Poetas/Cronistas", ubicacion: "Judea/Babilonia", notas: "Expresaron el trauma del exilio." }, { nombre: "Salmistas (ej. Salmo 137)", rol: "Poetas", ubicacion: "Babilonia", notas: "Articularon el dolor y el anhelo de los exiliados." } ];
     const gobernadoresPersaData = [ { nombre: "Sesbasar", fechas: "c. 538 a.C. en adelante", logros: "Lideró el primer retorno. Inició la reconstrucción del Templo.", detalles: "Nombrado 'príncipe de Judá' por Ciro, devolvió los utensilios del Templo y puso los cimientos del Segundo Templo (Esdras 1, 5)." }, { nombre: "Zorobabel", fechas: "c. 520 – c. 510 a.C.", logros: "Descendiente de David. Completó la reconstrucción del Segundo Templo.", detalles: "Gobernador de linaje davídico, completó el Templo con el Sumo Sacerdote Jesúa, animado por Hageo y Zacarías (Esdras 3-6)." }, { nombre: "Esdras", fechas: "Llegada c. 458 o 398 a.C.", logros: "Sacerdote y escriba. Reformas religiosas basadas en la Ley.", detalles: "Lideró un retorno y promulgó la Ley de Moisés, enfocándose en la pureza comunitaria y la disolución de matrimonios mixtos (Esdras 7-10)." }, { nombre: "Nehemías", fechas: "1er término: 445–433 a.C.", logros: "Copero real. Reconstruyó las murallas de Jerusalén.", detalles: "Nombrado gobernador por Artajerjes I, reconstruyó las murallas de Jerusalén e implementó reformas sociales y religiosas (Nehemías)." } ];
     const gobernadoresAsmoneosData = [ { nombre: "Judas Macabeo", titulo: "Líder Militar", fechas: "c. 166–160 a.C.", eventos: "Lideró la revuelta; purificó el Templo (1 Macabeos 3-4).", detalles: "Hijo de Matatías, lideró la Revuelta Macabea, logrando victorias clave y la rededicación del Templo (Hanukkah)." }, { nombre: "Jonatán Macabeo", titulo: "Líder, Sumo Sacerdote", fechas: "c. 160–143 a.C.", eventos: "Nombrado Sumo Sacerdote (1 Macabeos 10).", detalles: "Hermano de Judas, unió liderazgo político-militar con el sumo sacerdocio." }, { nombre: "Simón Macabeo", titulo: "Etnarca, Sumo Sacerdote", fechas: "142–135 a.C.", eventos: "Logró la independencia política (1 Macabeos 13-14).", detalles: "Último de los hermanos, obtuvo independencia y fue proclamado líder hereditario." }, { nombre: "Juan Hircano I", titulo: "Etnarca, Sumo Sacerdote", fechas: "135/134–104 a.C.", eventos: "Expandió el territorio.", detalles: "Hijo de Simón, expandió Judea, conquistó Idumea y Samaria." }, { nombre: "Aristóbulo I", titulo: "Rey, Sumo Sacerdote", fechas: "104–103 a.C.", eventos: "Primer asmoneo en tomar el título de 'Rey'.", detalles: "Primer Asmoneo en autoproclamarse Rey." }, { nombre: "Alejandro Janneo", titulo: "Rey, Sumo Sacerdote", fechas: "103–76 a.C.", eventos: "Expansión militar; conflictos internos.", detalles: "Reinó con expansión y severos conflictos internos, especialmente con los Fariseos." }, { nombre: "Salomé Alejandra", titulo: "Reina", fechas: "76–67 a.C.", eventos: "Única reina asmonea; período de paz.", detalles: "Esposa de Aristóbulo I y Alejandro Janneo, gobernó en un período de paz, favoreciendo a los Fariseos." }, { nombre: "Hircano II", titulo: "Rey (brevemente), Etnarca, Sumo Sacerdote", fechas: "67; 63–40 a.C.", eventos: "Guerra civil; restaurado por Pompeyo.", detalles: "Involucrado en guerra civil con su hermano Aristóbulo II, lo que llevó a la intervención romana." }, { nombre: "Aristóbulo II", titulo: "Rey, Sumo Sacerdote", fechas: "67–63 a.C.", eventos: "Derrocó a Hircano II; depuesto por Pompeyo.", detalles: "Luchó contra Hircano II por el poder, fue depuesto por Pompeyo." }, { nombre: "Antígono Matatías", titulo: "Rey, Sumo Sacerdote", fechas: "40–37 a.C.", eventos: "Último rey asmoneo; ejecutado por los romanos.", detalles: "Último rey Asmoneo, instalado con ayuda parta, fue derrotado y ejecutado por Herodes y los romanos." } ];
-    const gobernadoresRomanosData = [ { nombre: "Herodes I el Grande", titulo: "Rey de Judea", fechas: "40/37–4 a.C.", notas: "Reconstrucción del Templo; gobierno tiránico.", detalles: "Nombrado por Roma, fue un gran constructor (incluyendo la expansión del Templo) pero también un gobernante cruel y paranoico." }, { nombre: "Herodes Arquelao", titulo: "Etnarca", fechas: "4 a.C.–6 d.C.", notas: "Depuesto; Judea se convierte en provincia romana.", detalles: "Hijo de Herodes, gobernó Judea, Samaria e Idumea. Su brutalidad llevó a su deposición por Roma." }, { nombre: "Herodes Antipas", titulo: "Tetrarca", fechas: "4 a.C.–39 d.C.", notas: "Gobernó Galilea y Perea. Ejecutó a Juan el Bautista.", detalles: "Hijo de Herodes, gobernó Galilea y Perea. Conocido por su rol en los Evangelios." }, { nombre: "Herodes Agripa I", titulo: "Rey", fechas: "37/41–44 d.C.", notas: "Reunificó brevemente el reino.", detalles: "Nieto de Herodes el Grande, amigo de emperadores romanos, reunió gran parte del reino de su abuelo y fue popular entre algunos judíos." }, { nombre: "Poncio Pilato", titulo: "Prefecto de Judea", fechas: "26–36 d.C.", notas: "Juicio y crucifixión de Jesús.", detalles: "Gobernador romano de Judea, conocido por su papel en el juicio de Jesús. Su mandato fue conflictivo." }, { nombre: "Gessius Florus", titulo: "Procurador de Judea", fechas: "64–66 d.C.", notas: "Su mal gobierno contribuyó a la Primera Revuelta Judía.", detalles: "Último procurador antes de la Primera Revuelta Judía; su corrupción y brutalidad fueron un detonante clave del conflicto." } ];
+    const gobernadoresRomanosData = [ // Reordered for better Y-axis chronological flow
+        { nombre: "Herodes I el Grande", titulo: "Rey de Judea", fechas: "40/37–4 a.C.", notas: "Reconstrucción del Templo; gobierno tiránico.", detalles: "Nombrado por Roma, fue un gran constructor (incluyendo la expansión del Templo) pero también un gobernante cruel y paranoico." },
+        { nombre: "Herodes Arquelao", titulo: "Etnarca", fechas: "4 a.C.–6 d.C.", notas: "Depuesto; Judea se convierte en provincia romana.", detalles: "Hijo de Herodes, gobernó Judea, Samaria e Idumea. Su brutalidad llevó a su deposición por Roma." },
+        { nombre: "Herodes Antipas", titulo: "Tetrarca", fechas: "4 a.C.–39 d.C.", notas: "Gobernó Galilea y Perea. Ejecutó a Juan el Bautista.", detalles: "Hijo de Herodes, gobernó Galilea y Perea. Conocido por su rol en los Evangelios." },
+        { nombre: "Poncio Pilato", titulo: "Prefecto de Judea", fechas: "26–36 d.C.", notas: "Juicio y crucifixión de Jesús.", detalles: "Gobernador romano de Judea, conocido por su papel en el juicio de Jesús. Su mandato fue conflictivo." },
+        { nombre: "Herodes Agripa I", titulo: "Rey", fechas: "37/41–44 d.C.", notas: "Reunificó brevemente el reino.", detalles: "Nieto de Herodes el Grande, amigo de emperadores romanos, reunió gran parte del reino de su abuelo y fue popular entre algunos judíos." },
+        { nombre: "Gessius Florus", titulo: "Procurador de Judea", fechas: "64–66 d.C.", notas: "Su mal gobierno contribuyó a la Primera Revuelta Judía.", detalles: "Último procurador antes de la Primera Revuelta Judía; su corrupción y brutalidad fueron un detonante clave del conflicto." } 
+    ];
 
     document.addEventListener('DOMContentLoaded', function() {
         const navButtons = document.querySelectorAll('.nav-button');
@@ -487,7 +513,7 @@
             const apiKey = getApiKey();
             if (!apiKey) {
                 setContentResponse("<p>Por favor, introduce tu Clave API de Gemini en la sección de 'Configuración' (⚙️ en la barra de navegación) para usar esta funcionalidad.</p>");
-                setTimeout(showApiKeyModal, 500); // Open API key modal if key is missing
+                setTimeout(showApiKeyModal, 500); 
                 return;
             }
 
@@ -504,7 +530,7 @@
                     }
                     if (response.status === 400 && errorData.error.message.toLowerCase().includes('api key not valid')) {
                          errorMsg = "La Clave API de Gemini no es válida. Por favor, verifica e ingrésala de nuevo en Configuración (⚙️).";
-                         localStorage.removeItem('geminiApiKey'); // Clear invalid key
+                         localStorage.removeItem('geminiApiKey'); 
                          setTimeout(showApiKeyModal, 500);
                     }
                     throw new Error(errorMsg);
@@ -528,17 +554,24 @@
         
         function setActiveSection(targetId) {
             allContentSections.forEach(section => section.classList.toggle('active', section.id === targetId));
-            navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === targetId));
-            mobileMenuNavButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === targetId));
+            navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === targetId && btn.id !== 'configButton' && btn.id !== 'mobileConfigButton'));
+            mobileMenuNavButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === targetId && btn.id !== 'configButton' && btn.id !== 'mobileConfigButton'));
             window.scrollTo(0, 0);
         }
         
         setActiveSection('home');
         homeButton.addEventListener('click', () => { setActiveSection('home'); mobileMenu.classList.add('hidden'); });
-        navButtons.forEach(button => button.addEventListener('click', () => setActiveSection(button.dataset.tab)));
-        mobileMenuNavButtons.forEach(button => {
-            button.addEventListener('click', () => { setActiveSection(button.dataset.tab); mobileMenu.classList.add('hidden'); });
+        navButtons.forEach(button => {
+            if (button.id !== 'configButton' && button.id !== 'mobileConfigButton') { 
+                button.addEventListener('click', () => setActiveSection(button.dataset.tab));
+            }
         });
+        mobileMenuNavButtons.forEach(button => {
+             if (button.id !== 'configButton' && button.id !== 'mobileConfigButton') {
+                button.addEventListener('click', () => { setActiveSection(button.dataset.tab); mobileMenu.classList.add('hidden'); });
+            }
+        });
+
         exploreSectionButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const targetSectionId = button.dataset.targetSection;
@@ -667,42 +700,77 @@
         
         function createTimelineChart(canvasId, rawData, labelField = 'nombre', startField = 'startYear', endField = 'endYear', isBC = true) {
             const ctx = document.getElementById(canvasId)?.getContext('2d'); if (!ctx) return;
+            
             const transformedData = rawData.map(item => {
-                const [dp1, dp2] = item.fechas.split('–');
-                let start = parseInt(dp1.replace(/\D/g, '')); let end = dp2 ? parseInt(dp2.replace(/\D/g, '')) : start;
-                return { ...item, [startField]: isBC ? start : -start, [endField]: isBC ? end : -end };
+                const parts = item.fechas.split('–');
+                let startYearText = parts[0];
+                let endYearText = parts.length > 1 ? parts[1] : parts[0];
+
+                function parseDateTextToYear(dateText) {
+                    const isAC = dateText.includes('a.C.');
+                    const yearMatch = dateText.match(/\d+/);
+                    let year = yearMatch ? parseInt(yearMatch[0]) : NaN;
+                    if (isNaN(year)) return NaN; 
+                    return isAC ? -year : year; // BC is negative, AD is positive
+                }
+
+                let startY = parseDateTextToYear(startYearText);
+                let endY = parseDateTextToYear(endYearText);
+
+                // Ensure startY is numerically smaller than endY for the range [start, end]
+                // This is important for Chart.js when the axis is not reversed.
+                if (startY > endY) { [startY, endY] = [endY, startY]; }
+                
+                // For purely BC charts where axis is reversed, we might need different handling for x array.
+                // But if we use signed years consistently, the x array can be [startY, endY]
+                // and axis reversal + tick formatting will handle the display.
+
+                return { ...item, [startField]: startY, [endField]: endY };
             });
-            const years = transformedData.flatMap(d => [d[startField], d[endField]]);
-            let minYr = Math.min(...years); let maxYr = Math.max(...years);
+
+            const allYearsNumerically = transformedData.flatMap(d => [d[startField], d[endField]]);
+            let minDataYear = Math.min(...allYearsNumerically);
+            let maxDataYear = Math.max(...allYearsNumerically);
+
             const chartData = {
                 labels: transformedData.map(d => d[labelField]),
                 datasets: [{
                     label: 'Reinado/Gobierno',
-                    data: transformedData.map(d => ({ x: isBC ? [d[endField], d[startField]] : [-d[startField], -d[endField]], y: d[labelField], ...d })),
-                    backgroundColor: `rgba(14, 165, 233, 0.6)`, borderColor: `rgba(2, 132, 199, 1)`,
+                    data: transformedData.map(d => ({ 
+                        x: isBC ? [Math.abs(d[endField]), Math.abs(d[startField])] : [d[startField], d[endField]], // For BC on reversed axis: [later_abs, earlier_abs]
+                        y: d[labelField], 
+                        nombre: d.nombre, fechas: d.fechas, eventos: d.eventos, 
+                        logros: d.logros, notas: d.notas, detalles: d.detalles 
+                    })),
+                    backgroundColor: `rgba(14, 165, 233, 0.6)`, 
+                    borderColor: `rgba(2, 132, 199, 1)`,
                     borderWidth: 1, barPercentage: 0.7, categoryPercentage: 0.9, borderRadius: 4
                 }]
             };
-            let opts = JSON.parse(JSON.stringify(chartBaseOptions)); 
-            if (isBC) {
-                opts.scales.x.reverse = true; opts.scales.x.ticks.callback = function(v) { return Math.abs(v) + ' a.C.'; };
-                opts.scales.x.min = maxYr - 5; opts.scales.x.max = minYr + 5; 
-            } else { 
-                opts.scales.x.reverse = false; opts.scales.x.ticks.callback = function(v) { return Math.abs(v) + ' d.C.'; };
-                opts.scales.x.min = Math.abs(maxYr) - 5; opts.scales.x.max = Math.abs(minYr) + 5; 
+            
+            let specificOptions = JSON.parse(JSON.stringify(chartBaseOptions)); 
+            if (isBC) { // Purely BC chart
+                specificOptions.scales.x.reverse = true;
+                specificOptions.scales.x.ticks.callback = function(value) { return Math.abs(value) + ' a.C.'; };
+                // For reversed BC axis, max is largest abs value (earliest year), min is smallest abs value (latest year)
+                specificOptions.scales.x.min = Math.min(...transformedData.map(d=>Math.abs(d[endField]))) - 5; 
+                specificOptions.scales.x.max = Math.max(...transformedData.map(d=>Math.abs(d[startField]))) + 5;
+            } else { // Mixed BC/AD or AD only chart (like Roman period)
+                specificOptions.scales.x.reverse = false;
+                specificOptions.scales.x.ticks.callback = function(value) { 
+                    if (value === 0) return 'Año 1'; // Or handle as desired
+                    return value < 0 ? Math.abs(value) + ' a.C.' : value + ' d.C.'; 
+                };
+                specificOptions.scales.x.min = minDataYear - 10;
+                specificOptions.scales.x.max = maxDataYear + 10;
             }
-            new Chart(ctx, { type: 'bar', data: chartData, options: opts });
+            new Chart(ctx, { type: 'bar', data: chartData, options: specificOptions });
         }
         
         createTimelineChart('reyesAntesChart', reyesAntesDelExilioData, 'nombre', 'startYear', 'endYear', true);
         createTimelineChart('gobernadoresPersaChart', gobernadoresPersaData, 'nombre', 'startYear', 'endYear', true);
         createTimelineChart('gobernadoresAsmoneoChart', gobernadoresAsmoneosData, 'nombre', 'startYear', 'endYear', true);
-        const gRPD = gobernadoresRomanosData.map(g => {
-            const iAC = g.fechas.includes('a.C.'); let sN, eN; const ds = g.fechas.split('–');
-            sN = parseInt(ds[0].replace(/\D/g, '')); eN = ds.length > 1 ? parseInt(ds[1].replace(/\D/g, '')) : sN;
-            return { ...g, startYear: iAC ? sN : -sN, endYear: iAC ? eN : -eN, isBCPeriod: iAC };
-        });
-        createTimelineChart('gobernadoresRomanoChart', gRPD, 'nombre', 'startYear', 'endYear', false);
+        createTimelineChart('gobernadoresRomanoChart', gobernadoresRomanosData, 'nombre', 'startYear', 'endYear', false); // isBC = false for Roman chart
 
     });
 </script>
