@@ -7,11 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Visualization & Content Choices: 
-        Home Page: Intro + 3 cards (Image, Title, Desc, Button) for main sections.
-        Kings/Governors (in detailed sections): Interactive Timelines (Chart.js). Click for detail + Gemini "Analizar Impacto". X-axis logic for Roman chart (BC/AD) fixed. Y-axis order for Roman rulers slightly adjusted.
-        Prophetic messages (in detailed sections): Accordion. Expand + Gemini "Profundizar Mensaje" + "Ver Versículos" (Gemini modal).
-        Contextual Navigation: Buttons at the bottom of "Antes", "Durante", "Después" sections for sequential navigation.
-        API Key Management: Settings modal for user to input and save their Gemini API Key to localStorage. Gemini calls check for this key.
+        Home Page: Intro + 3 cards for main sections.
+        Kings/Governors: Interactive Timelines (Chart.js). Click for detail + Gemini "Analizar Impacto".
+        Prophetic messages: Accordion. Expand + Gemini "Profundizar Mensaje" + "Ver Versículos" (Gemini modal).
+        Contextual Navigation: Fixed bottom bar with "Anterior", "Siguiente" buttons for "Antes", "Durante", "Después" sections.
+        API Key Management: Settings modal for user to input/save Gemini API Key to localStorage.
         Modal UI: Modern, clean, enhanced typography.
     -->
     <style>
@@ -19,6 +19,8 @@
             font-family: 'Inter', sans-serif;
             background-color: #f1f5f9; /* slate-100 */
             color: #334155; /* slate-700 */
+            padding-bottom: 0px; /* Initial padding, will be adjusted by JS */
+            transition: padding-bottom 0.3s ease-out;
         }
         .nav-logo:hover {
             opacity: 0.8;
@@ -71,7 +73,7 @@
         
         .action-button { 
             padding: 0.625rem 1.25rem; border-radius: 0.5rem; font-weight: 500; 
-            transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+            transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
             cursor: pointer; border: none; display: inline-flex; align-items: center;
             gap: 0.5rem; text-decoration: none;
             box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1); 
@@ -80,6 +82,10 @@
         .gemini-button:hover { background-color: #0f172a; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); }
         .verse-modal-button { background-color: #0ea5e9; color: white; }
         .verse-modal-button:hover { background-color: #0284c7; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); }
+        .action-button.invisible {
+            opacity: 0;
+            pointer-events: none;
+        }
         
         .verse-in-text-trigger { color: #0ea5e9; text-decoration: underline; cursor: pointer; font-weight: 500; }
         .verse-in-text-trigger:hover { color: #0284c7; }
@@ -164,13 +170,14 @@
             border-color: #38bdf8; 
             box-shadow: 0 0 0 2px #38bdf8;
         }
-        .contextual-nav-buttons {
-            margin-top: 2.5rem; /* mt-10 */
-            padding-top: 1.5rem; /* pt-6 */
-            border-top: 1px solid #e2e8f0; /* border-slate-200 */
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        /* Removed old .contextual-nav-buttons styles */
+        #contextualNavContainer {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        #contextualNavContainer.hidden {
+            opacity: 0;
+            transform: translateY(100%);
+            pointer-events: none;
         }
 
     </style>
@@ -266,10 +273,6 @@
             <div id="profetasAntesAccordion" class="space-y-4"></div>
             <h3 class="text-2xl font-semibold text-slate-800 mt-10 mb-4">Tabla Resumen: Últimos Reyes de Judá</h3>
             <div class="table-container"> <table class="min-w-full"> <thead> <tr> <th>Nombre del Rey</th> <th>Fechas (aprox.)</th> <th>Eventos Clave</th> </tr> </thead> <tbody id="tablaReyesAntes" class="divide-y divide-slate-200"></tbody> </table> </div>
-            <div class="contextual-nav-buttons">
-                <span></span>
-                <button class="action-button gemini-button explore-section-btn" data-target-section="durante">Siguiente Sección: Durante el Exilio &rarr;</button>
-            </div>
         </section>
 
         <section id="durante" class="content-section content-card">
@@ -305,10 +308,6 @@
             </div>
             <h3 class="text-2xl font-semibold text-slate-800 mt-10 mb-4">Tabla Resumen: Figuras Clave Durante el Exilio</h3>
             <div class="table-container"> <table class="min-w-full"> <thead> <tr> <th>Nombre</th> <th>Rol/Título</th> <th>Ubicación</th> <th>Notas</th> </tr> </thead> <tbody id="tablaFigurasDurante" class="divide-y divide-slate-200"></tbody> </table> </div>
-            <div class="contextual-nav-buttons">
-                <button class="action-button gemini-button explore-section-btn" data-target-section="antes">&larr; Sección Anterior: Antes del Exilio</button>
-                <button class="action-button gemini-button explore-section-btn" data-target-section="despues">Siguiente Sección: Después del Exilio &rarr;</button>
-            </div>
         </section>
 
         <section id="despues" class="content-section content-card">
@@ -338,10 +337,6 @@
                 <div id="gobernadorRomanoDetalle" class="p-6 bg-slate-50 rounded-xl shadow-md hidden mt-6"></div>
                 <h4 class="text-xl font-semibold text-slate-800 mt-8 mb-4">Tabla Resumen: Gobernantes Romanos Tempranos</h4>
                 <div class="table-container"> <table class="min-w-full"> <thead> <tr> <th>Gobernante</th> <th>Título(s)</th> <th>Fechas (aprox.)</th> <th>Notas</th> </tr> </thead> <tbody id="tablaGobernadoresRomanos" class="divide-y divide-slate-200"></tbody> </table> </div>
-            </div>
-            <div class="contextual-nav-buttons">
-                <button class="action-button gemini-button explore-section-btn" data-target-section="durante">&larr; Sección Anterior: Durante el Exilio</button>
-                <span></span>
             </div>
         </section>
 
@@ -417,6 +412,13 @@
         </div>
     </div>
 
+    <div id="contextualNavContainer" class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-slate-300 p-3 shadow-2xl z-40 hidden">
+        <div class="max-w-3xl mx-auto flex justify-between items-center">
+            <button id="prevSectionButton" class="action-button gemini-button"> &larr; Anterior</button>
+            <button id="nextSectionButton" class="action-button gemini-button">Siguiente &rarr;</button>
+        </div>
+    </div>
+
     <footer class="bg-white mt-16 border-t border-slate-200">
         <div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 text-center text-slate-500 text-sm">
             <p>&copy; 2024 Explorador Interactivo del Exilio Babilónico. Contenido adaptado del informe.</p>
@@ -429,7 +431,7 @@
     const figurasDuranteData = [ { nombre: "Gedalías, hijo de Ahicam", rol: "Gobernador de Judea", ubicacion: "Judea (Mizpa)", notas: "Nombrado por Nabucodonosor (2 Reyes 25:22). Asesinado (Jeremías 41)." }, { nombre: "Joaquín (Jeconías)", rol: "Rey exiliado de Judá", ubicacion: "Babilonia", notas: "Liberado y honrado por Evil-Merodac (2 Reyes 25:27-30)." }, { nombre: "Ezequiel", rol: "Profeta, Sacerdote", ubicacion: "Babilonia", notas: "Profetizó juicio y restauración (Ezequiel 37, 40-48)." }, { nombre: "Daniel", rol: "Profeta, Funcionario de la corte", ubicacion: "Babilonia/Persia", notas: "Sirvió en cortes imperiales; visiones apocalípticas (Daniel 2, 7)." }, { nombre: "Ancianos", rol: "Líderes comunitarios", ubicacion: "Babilonia", notas: "Mantuvieron cohesión social y religiosa (Ezequiel 8:1; Jeremías 29:1)." }, { nombre: "Autores de Lamentaciones", rol: "Poetas/Cronistas", ubicacion: "Judea/Babilonia", notas: "Expresaron el trauma del exilio." }, { nombre: "Salmistas (ej. Salmo 137)", rol: "Poetas", ubicacion: "Babilonia", notas: "Articularon el dolor y el anhelo de los exiliados." } ];
     const gobernadoresPersaData = [ { nombre: "Sesbasar", fechas: "c. 538 a.C. en adelante", logros: "Lideró el primer retorno. Inició la reconstrucción del Templo.", detalles: "Nombrado 'príncipe de Judá' por Ciro, devolvió los utensilios del Templo y puso los cimientos del Segundo Templo (Esdras 1, 5)." }, { nombre: "Zorobabel", fechas: "c. 520 – c. 510 a.C.", logros: "Descendiente de David. Completó la reconstrucción del Segundo Templo.", detalles: "Gobernador de linaje davídico, completó el Templo con el Sumo Sacerdote Jesúa, animado por Hageo y Zacarías (Esdras 3-6)." }, { nombre: "Esdras", fechas: "Llegada c. 458 o 398 a.C.", logros: "Sacerdote y escriba. Reformas religiosas basadas en la Ley.", detalles: "Lideró un retorno y promulgó la Ley de Moisés, enfocándose en la pureza comunitaria y la disolución de matrimonios mixtos (Esdras 7-10)." }, { nombre: "Nehemías", fechas: "1er término: 445–433 a.C.", logros: "Copero real. Reconstruyó las murallas de Jerusalén.", detalles: "Nombrado gobernador por Artajerjes I, reconstruyó las murallas de Jerusalén e implementó reformas sociales y religiosas (Nehemías)." } ];
     const gobernadoresAsmoneosData = [ { nombre: "Judas Macabeo", titulo: "Líder Militar", fechas: "c. 166–160 a.C.", eventos: "Lideró la revuelta; purificó el Templo (1 Macabeos 3-4).", detalles: "Hijo de Matatías, lideró la Revuelta Macabea, logrando victorias clave y la rededicación del Templo (Hanukkah)." }, { nombre: "Jonatán Macabeo", titulo: "Líder, Sumo Sacerdote", fechas: "c. 160–143 a.C.", eventos: "Nombrado Sumo Sacerdote (1 Macabeos 10).", detalles: "Hermano de Judas, unió liderazgo político-militar con el sumo sacerdocio." }, { nombre: "Simón Macabeo", titulo: "Etnarca, Sumo Sacerdote", fechas: "142–135 a.C.", eventos: "Logró la independencia política (1 Macabeos 13-14).", detalles: "Último de los hermanos, obtuvo independencia y fue proclamado líder hereditario." }, { nombre: "Juan Hircano I", titulo: "Etnarca, Sumo Sacerdote", fechas: "135/134–104 a.C.", eventos: "Expandió el territorio.", detalles: "Hijo de Simón, expandió Judea, conquistó Idumea y Samaria." }, { nombre: "Aristóbulo I", titulo: "Rey, Sumo Sacerdote", fechas: "104–103 a.C.", eventos: "Primer asmoneo en tomar el título de 'Rey'.", detalles: "Primer Asmoneo en autoproclamarse Rey." }, { nombre: "Alejandro Janneo", titulo: "Rey, Sumo Sacerdote", fechas: "103–76 a.C.", eventos: "Expansión militar; conflictos internos.", detalles: "Reinó con expansión y severos conflictos internos, especialmente con los Fariseos." }, { nombre: "Salomé Alejandra", titulo: "Reina", fechas: "76–67 a.C.", eventos: "Única reina asmonea; período de paz.", detalles: "Esposa de Aristóbulo I y Alejandro Janneo, gobernó en un período de paz, favoreciendo a los Fariseos." }, { nombre: "Hircano II", titulo: "Rey (brevemente), Etnarca, Sumo Sacerdote", fechas: "67; 63–40 a.C.", eventos: "Guerra civil; restaurado por Pompeyo.", detalles: "Involucrado en guerra civil con su hermano Aristóbulo II, lo que llevó a la intervención romana." }, { nombre: "Aristóbulo II", titulo: "Rey, Sumo Sacerdote", fechas: "67–63 a.C.", eventos: "Derrocó a Hircano II; depuesto por Pompeyo.", detalles: "Luchó contra Hircano II por el poder, fue depuesto por Pompeyo." }, { nombre: "Antígono Matatías", titulo: "Rey, Sumo Sacerdote", fechas: "40–37 a.C.", eventos: "Último rey asmoneo; ejecutado por los romanos.", detalles: "Último rey Asmoneo, instalado con ayuda parta, fue derrotado y ejecutado por Herodes y los romanos." } ];
-    const gobernadoresRomanosData = [ // Reordered for better Y-axis chronological flow
+    const gobernadoresRomanosData = [ 
         { nombre: "Herodes I el Grande", titulo: "Rey de Judea", fechas: "40/37–4 a.C.", notas: "Reconstrucción del Templo; gobierno tiránico.", detalles: "Nombrado por Roma, fue un gran constructor (incluyendo la expansión del Templo) pero también un gobernante cruel y paranoico." },
         { nombre: "Herodes Arquelao", titulo: "Etnarca", fechas: "4 a.C.–6 d.C.", notas: "Depuesto; Judea se convierte en provincia romana.", detalles: "Hijo de Herodes, gobernó Judea, Samaria e Idumea. Su brutalidad llevó a su deposición por Roma." },
         { nombre: "Herodes Antipas", titulo: "Tetrarca", fechas: "4 a.C.–39 d.C.", notas: "Gobernó Galilea y Perea. Ejecutó a Juan el Bautista.", detalles: "Hijo de Herodes, gobernó Galilea y Perea. Conocido por su rol en los Evangelios." },
@@ -462,6 +464,11 @@
         const apiKeyMessage = document.getElementById('apiKeyMessage');
         const configButton = document.getElementById('configButton');
         const mobileConfigButton = document.getElementById('mobileConfigButton');
+
+        const contextualNavContainer = document.getElementById('contextualNavContainer');
+        const prevSectionButton = document.getElementById('prevSectionButton');
+        const nextSectionButton = document.getElementById('nextSectionButton');
+
 
         function showContentModal() { contentModal.classList.remove('hidden'); }
         function hideContentModal() { contentModal.classList.add('hidden'); contentLoading.classList.add('hidden'); contentResponseArea.innerHTML = ''; }
@@ -557,6 +564,33 @@
             navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === targetId && btn.id !== 'configButton' && btn.id !== 'mobileConfigButton'));
             mobileMenuNavButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === targetId && btn.id !== 'configButton' && btn.id !== 'mobileConfigButton'));
             window.scrollTo(0, 0);
+
+            // Contextual Navigation Logic
+            if (['antes', 'durante', 'despues'].includes(targetId)) {
+                contextualNavContainer.classList.remove('hidden');
+                document.body.style.paddingBottom = '80px'; // Adjust this value based on the actual height of the nav bar
+
+                prevSectionButton.classList.remove('invisible');
+                nextSectionButton.classList.remove('invisible');
+
+                if (targetId === 'antes') {
+                    prevSectionButton.classList.add('invisible');
+                    nextSectionButton.onclick = () => setActiveSection('durante');
+                    nextSectionButton.textContent = 'Durante el Exilio →';
+                } else if (targetId === 'durante') {
+                    prevSectionButton.onclick = () => setActiveSection('antes');
+                    prevSectionButton.textContent = '← Antes del Exilio';
+                    nextSectionButton.onclick = () => setActiveSection('despues');
+                    nextSectionButton.textContent = 'Después del Exilio →';
+                } else if (targetId === 'despues') {
+                    prevSectionButton.onclick = () => setActiveSection('durante');
+                    prevSectionButton.textContent = '← Durante el Exilio';
+                    nextSectionButton.classList.add('invisible');
+                }
+            } else {
+                contextualNavContainer.classList.add('hidden');
+                document.body.style.paddingBottom = '0px';
+            }
         }
         
         setActiveSection('home');
@@ -711,20 +745,14 @@
                     const yearMatch = dateText.match(/\d+/);
                     let year = yearMatch ? parseInt(yearMatch[0]) : NaN;
                     if (isNaN(year)) return NaN; 
-                    return isAC ? -year : year; // BC is negative, AD is positive
+                    return isAC ? -year : year; 
                 }
 
                 let startY = parseDateTextToYear(startYearText);
                 let endY = parseDateTextToYear(endYearText);
 
-                // Ensure startY is numerically smaller than endY for the range [start, end]
-                // This is important for Chart.js when the axis is not reversed.
                 if (startY > endY) { [startY, endY] = [endY, startY]; }
                 
-                // For purely BC charts where axis is reversed, we might need different handling for x array.
-                // But if we use signed years consistently, the x array can be [startY, endY]
-                // and axis reversal + tick formatting will handle the display.
-
                 return { ...item, [startField]: startY, [endField]: endY };
             });
 
@@ -737,7 +765,7 @@
                 datasets: [{
                     label: 'Reinado/Gobierno',
                     data: transformedData.map(d => ({ 
-                        x: isBC ? [Math.abs(d[endField]), Math.abs(d[startField])] : [d[startField], d[endField]], // For BC on reversed axis: [later_abs, earlier_abs]
+                        x: isBC ? [Math.abs(d[endField]), Math.abs(d[startField])] : [d[startField], d[endField]], 
                         y: d[labelField], 
                         nombre: d.nombre, fechas: d.fechas, eventos: d.eventos, 
                         logros: d.logros, notas: d.notas, detalles: d.detalles 
@@ -749,16 +777,15 @@
             };
             
             let specificOptions = JSON.parse(JSON.stringify(chartBaseOptions)); 
-            if (isBC) { // Purely BC chart
+            if (isBC) { 
                 specificOptions.scales.x.reverse = true;
                 specificOptions.scales.x.ticks.callback = function(value) { return Math.abs(value) + ' a.C.'; };
-                // For reversed BC axis, max is largest abs value (earliest year), min is smallest abs value (latest year)
                 specificOptions.scales.x.min = Math.min(...transformedData.map(d=>Math.abs(d[endField]))) - 5; 
                 specificOptions.scales.x.max = Math.max(...transformedData.map(d=>Math.abs(d[startField]))) + 5;
-            } else { // Mixed BC/AD or AD only chart (like Roman period)
+            } else { 
                 specificOptions.scales.x.reverse = false;
                 specificOptions.scales.x.ticks.callback = function(value) { 
-                    if (value === 0) return 'Año 1'; // Or handle as desired
+                    if (value === 0) return 'Año 1'; 
                     return value < 0 ? Math.abs(value) + ' a.C.' : value + ' d.C.'; 
                 };
                 specificOptions.scales.x.min = minDataYear - 10;
@@ -770,7 +797,7 @@
         createTimelineChart('reyesAntesChart', reyesAntesDelExilioData, 'nombre', 'startYear', 'endYear', true);
         createTimelineChart('gobernadoresPersaChart', gobernadoresPersaData, 'nombre', 'startYear', 'endYear', true);
         createTimelineChart('gobernadoresAsmoneoChart', gobernadoresAsmoneosData, 'nombre', 'startYear', 'endYear', true);
-        createTimelineChart('gobernadoresRomanoChart', gobernadoresRomanosData, 'nombre', 'startYear', 'endYear', false); // isBC = false for Roman chart
+        createTimelineChart('gobernadoresRomanoChart', gobernadoresRomanosData, 'nombre', 'startYear', 'endYear', false); 
 
     });
 </script>
